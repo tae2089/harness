@@ -20,88 +20,116 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 > **모든 에이전트 공통 필수 도구:** `ask_user`, `activate_skill` (이하 표에서는 생략하여 역할별 차별 도구만 표기).
 
-| 에이전트 | 유형 | 핵심 도구 세트 | 주요 산출물 |
-| :--- | :--- | :--- | :--- |
-| @{analyst} | Analyst | read_file, grep_search, google_web_search | `_workspace/01_analysis.md` |
-| @{coder} | Coder | write_file, replace, run_shell_command | `_workspace/02_code.md` |
-| @{reviewer} | Reviewer | read_file, grep_search, testing_tools | `_workspace/03_review.md` |
+| agent     | 에이전트 타입        | 역할   | 스킬    | 출력          |
+| --------- | -------------------- | ------ | ------- | ------------- |
+| {agent-1} | {커스텀 또는 빌트인} | {역할} | {skill} | {output-file} |
+| {agent-2} | {커스텀 또는 빌트인} | {역할} | {skill} | {output-file} |
+| ...       |                      |        |         |               |
 
 ## 워크플로우 및 데이터 브로커링 로직
 
 ### Phase 0: 컨텍스트 확인 (재실행 감지)
 
-오케스트레이터는 가장 먼저 기존 산출물을 점검하여 실행 모드를 결정한다.
+기존 산출물 존재 여부를 확인하여 실행 모드를 결정한다:
 
-1. `_workspace/` 디렉토리 존재 여부 확인.
-2. 실행 모드 분기:
-   - **미존재** → 초기 실행. Phase 1로 진행.
-   - **존재 + 부분 수정 요청** → 부분 재실행. 해당 에이전트만 재호출하고 대상 산출물만 덮어쓴다. 기존 `findings.md`는 유지하며 [변경 요청] 섹션을 추가한다.
-   - **존재 + 새 입력 제공** → 새 실행. 기존 `_workspace/`를 `_workspace_{YYYYMMDD_HHMMSS}/`로 이동한 뒤 Phase 1 진행.
-3. 부분 재실행 시, 이전 산출물 경로를 에이전트 프롬프트에 명시하여 재작성이 아닌 **수정·보완**이 되도록 지시한다.
+1. `_workspace/` 디렉토리 존재 여부 확인
+2. 실행 모드 결정:
+   - **`_workspace/` 미존재** → 초기 실행. Phase 1로 진행
+   - **`_workspace/` 존재 + 사용자가 부분 수정 요청** → 부분 재실행. 해당 에이전트만 재호출하고, 기존 산출물 중 수정 대상만 덮어쓴다
+   - **`_workspace/` 존재 + 새 입력 제공** → 새 실행. 기존 `_workspace/`를 `_workspace_{YYYYMMDD_HHMMSS}/`로 이동한 뒤 Phase 1 진행
+3. 부분 재실행 시: 이전 산출물 경로를 에이전트 프롬프트에 포함하여, 에이전트가 기존 결과를 읽고 피드백을 반영하도록 지시
 
 ### Phase 1: 준비 및 태스크 보드 초기화
 
-1. 사용자 입력을 분석하여 목표·제약·성공 기준을 추출한다.
-2. `_workspace/00_input/`에 원본 입력을 보존한다.
-3. `_workspace/tasks.md`에 전체 단계(Phase 1~N)와 담당 에이전트를 등록한다.
-4. `_workspace/findings.md`를 생성하고 초기 요구사항 요약을 [핵심 통찰] 섹션에 기록한다.
+1. 사용자 입력 분석 — {무엇을 파악하는지}
+2. 작업 디렉토리에 `_workspace/` 생성
+   - **초기 실행**: 새 `_workspace/` 생성
+   - **새 실행**: 기존 `_workspace/`를 `_workspace_{YYYYMMDD_HHMMSS}/`로 이동한 직후 새 `_workspace/` 재생성
+3. 입력 데이터를 `_workspace/{plan_name}/`에 저장
 
-### Phase 2: 서브에이전트 병렬/순차 실행
+### Phase 2: 서브에이전트 호출 및 제어 (`invoke_agent` 활용)
 
-메인 에이전트는 각 단계마다 다음 **데이터 브로커링 루프**를 수행한다.
+메인 에이전트는 각 단계마다 **반드시 시스템 도구인 `invoke_agent`를 사용**하여 다음 브로커링 루프를 수행한다.
 
 1. **사전 브리핑:** 호출 전 `findings.md`를 읽어 현재까지의 발견 사항을 파악한다.
-2. **에이전트 호출:** `@{agent}` 직접 호출. 프롬프트에 `findings.md`의 핵심 요약을 포함하고, 예상 산출물 경로를 명시한다.
-   - 예: `@{analyst}` 에게 "findings.md의 [핵심키워드]를 중심으로 심층 조사하고, 결과를 `_workspace/01_analysis.md`에 기록하라."
-3. **병렬 실행 지침:** 의존성이 없는 에이전트는 메인 에이전트가 단일 응답 턴에서 여러 번 호출하여 동시 실행을 유도한다(Gemini CLI는 **서브에이전트 병렬 실행 플래그**가 없으므로, 에이전트 간 병렬성은 호출 배치로만 확보된다. 반면 셸 명령 자체는 `run_shell_command`의 백그라운드 옵션으로 병렬 구동 가능).
-4. **사후 분석:** 에이전트의 산출물을 `read_file`로 읽고, 새로운 통찰·데이터 충돌을 `findings.md`에 실시간 업데이트한다.
+2. **에이전트 호출:** `invoke_agent(agent_name="...", prompt="...")` 도구를 사용한다.
+   - **고급 컨텍스트 주입:** 프롬프트 내에 `@{_workspace/findings.md}` 구문을 직접 포함하여 서브에이전트가 작업 중인 최신 통찰을 즉시 참조하게 할 수 있다.
+   - 예: `invoke_agent(agent_name="analyst", prompt="@{_workspace/findings.md}의 요구사항을 기반으로 심층분석을 수행하고, 결과를 @{_workspace/{plan_name}/01_analysis.md}에 기록하라.")`
+3. **병렬/순차 제어 (`wait_for_previous`):**
+   - **병렬 (Fan-out):** 의존성이 없는 에이전트 호출 시 `wait_for_previous: false`로 설정하여 단일 턴 내 동시 실행을 유도한다.
+   - **순차 (Pipeline):** 이전 결과가 반드시 필요하면 `wait_for_previous: true`로 설정한다.
+4. **결과 요약 브로커링:** 서브에이전트의 전체 로그를 모두 분석하기보다, `invoke_agent`가 반환한 **"요약된 실행 결과"**를 우선적으로 활용하여 `findings.md`를 갱신함으로써 메인 에이전트의 컨텍스트 윈도우를 효율적으로 관리한다.
+   - **자문 스타일 처리:** 에이전트가 자문(Consultative) 모드로 쓰인 경우, 결과 파일이 없을 수 있다. 이 때는 반환된 "의견"이나 "체크리스트"를 `findings.md`의 [핵심 통찰]에 즉시 최신화한다.
 5. **태스크 보드 갱신:** 매 에이전트 완료 시 `tasks.md`의 상태를 `Todo → In-Progress → Done`으로 전환한다.
 
-### Phase 3: 교차 검증 및 데이터 정합성 해결
+### Phase 3: 교차 검증 및 데이터 정합성 해결 (Feedback Loop 강화)
 
 - **상충 중개:** Analyst와 Coder의 산출물이 상충하면, 오케스트레이터가 `findings.md`의 [데이터 충돌] 섹션에 모순점을 명시하고 Reviewer에게 최종 판정을 요청한다.
-- **증분 QA:** 전체 완성 후가 아니라, 각 모듈(생산자+소비자)이 완성되는 즉시 Reviewer를 호출해 피드백 루프를 짧게 유지한다.
+- **증분 QA & Fix Loop:** 전체 완성 후가 아니라, 각 모듈(생산자+소비자)이 완성되는 즉시 Reviewer를 호출해 피드백 루프를 짧게 유지한다.
+  - **피드백 루프 로직:** Reviewer가 산출물을 반려하면, 오케스트레이터는 반려 사유가 담긴 `_workspace/{plan_name}/03_review.md`를 생산자(@coder 등)의 프롬프트에 주입하여 재작성을 지시한다.
+  - **산출물 버전 관리:** 기존 산출물을 단순히 덮어쓰는 대신, `_workspace/{plan_name}/02_code_v1.md`처럼 버전을 명시하거나 `_workspace/history/`에 백업하여 변경 이력을 추적 가능하게 관리한다.
+  - **재시도 제한:** 이 루프는 최대 3회까지만 수행한다. 3회 초과 시 오케스트레이터는 `ask_user`를 통해 사용자에게 중단 여부나 수동 개입 경로를 확인한다.
 - **상태 업데이트:** 매 단계 완료 후 `tasks.md`의 상태와 산출물 경로를 갱신한다.
 
 ### Phase 4: 통합 및 최종 산출
 
 1. 모든 에이전트의 산출물을 `read_file`로 수집한다.
 2. `findings.md`의 [공유 변수/경로]를 기준으로 충돌을 최종 해소한다.
-3. 최종 산출물을 `_workspace/final/{output}.md`에 생성한다.
+3. 최종 산출물을 `_workspace/{plan_name}/final_{output}.md`에 생성한다.
 
-### Phase 5: 정리
+### Phase 5: 아카이브 및 정리 (Findings & Tasks 관리 고도화)
 
-1. `_workspace/`는 **삭제하지 않고 보존**한다 — 사후 검증·감사 추적·부분 재실행에 사용한다.
-2. 사용자에게 결과 요약과 주요 산출물 경로, `findings.md`의 [다음 단계 지침]을 보고한다.
+1. **상세 기록 보존:** 작업 중 `_workspace/findings.md` 및 `_workspace/tasks.md`에 기록된 모든 상세 내용을 `_workspace/{plan_name}/findings.md` 및 `_workspace/{plan_name}/tasks.md`로 복사하여 플랜별 이력과 태스크 상태를 보존한다.
+2. **중앙 findings 요약:** 메인 `_workspace/findings.md`의 내용을 비우고, 해당 플랜의 **[최종 결과 요약]**과 상세 내용이 담긴 **[아카이브 경로]**(`_workspace/{plan_name}/findings.md`)만 남긴다.
+3. **보존:** `_workspace/` 전체 구조를 유지하여 사후 검증 및 부분 재실행 시 참조 가능하게 한다.
+4. **보고:** 사용자에게 결과 요약과 아카이브된 상세 통찰 및 태스크 경로를 보고한다.
 
-## 데이터 브로커링 프로토콜
+## 데이터 브로커링 프로토콜 (Mandatory Schema)
 
+오케스트레이터는 데이터 일관성과 컨텍스트 효율을 위해 다음 스키마와 경로 규칙을 엄격히 준수해야 한다.
+
+- **작업 경로 규칙:** 모든 실무 에이전트의 산출물은 `_workspace/{plan_name}/` 하위에 저장한다.
 - **Findings (중개 데이터):** `_workspace/findings.md`
-  - 섹션: [핵심 통찰], [데이터 충돌], [공유 변수/경로], [변경 요청], [다음 단계 지침]
+  - **업데이트 원칙:** 정보를 단순 누적하지 마라. 새로운 통찰이 발견되면 기존 내용을 **요약 및 최신화(Overwrite)**하여 컨텍스트 윈도우 낭비를 방지한다.
+  - **작업 중 필드 (상세 기록):**
+    - `# [핵심 통찰]`: 현재까지 발견된 도메인/기술적 핵심 사실 (가장 최신 상태로 유지).
+    - `# [데이터 충돌]`: 에이전트 간 산출물 불일치 내역 (에이전트명, 충돌 지점, 해결 상태).
+    - `# [공유 변수/경로]`: 에이전트들이 공통으로 참조해야 할 파일 경로 및 상수.
+    - `# [변경 요청]`: 부분 재실행 시 사용자가 요청한 변경 사항 요약.
+    - `# [다음 단계 지침]`: 다음 에이전트가 중점적으로 봐야 할 가이드.
+  - **작업 완료 후 (아카이브 & 요약):**
+    - **상세 이력 보존:** 위 모든 내용을 `_workspace/{plan_name}/findings.md` 및 `tasks.md`로 이동/복사.
+    - **중앙 요약:** `_workspace/findings.md`를 초기화한 후, 해당 플랜의 **[최종 결과 요약]**과 **[상세 이력 경로]**만 남겨 후속 작업 시 컨텍스트 무게를 최소화한다.
+
 - **Tasks (상태 데이터):** `_workspace/tasks.md`
-  - 항목: [ID], [에이전트], [작업 내용], [상태: Todo/In-Progress/Done/Blocked], [연결 산출물]
+  - `| ID | 에이전트 | 작업 내용 | 상태 | 산출물 경로 |` (Markdown Table 형식 권장)
+  - 상태값: `Todo`, `In-Progress`, `Done`, `Blocked`
 
 ## 데이터 흐름
-
 ```
+
                      ┌──────────────────────────┐
                      │   메인 에이전트 (Broker)   │
                      │  findings.md / tasks.md  │
                      └────┬────────┬────────┬───┘
                           │        │        │
-                 read_file│   호출 │        │read_file
+                 read_file│   호출 │        │read_file (Feedback)
                           ▼        ▼        ▼
                       @analyst  @coder  @reviewer
                           │        │        │
                           ▼        ▼        ▼
-                 01_analysis.md 02_code.md 03_review.md
+                  {plan_name}/  {plan_name}/  {plan_name}/
+                  01_analysis.md 02_code.md   03_review.md
                           │        │        │
-                          └────────┼────────┘
-                                   ▼
-                              _workspace/final/{output}.md
+                          └────────┴───┬────┘
+                                       │ (Re-entry Loop)
+                                       ▼
+                              _workspace/{plan_name}/final_{output}.md
+
 ```
 
-핵심: 에이전트는 서로 파일조차 직접 읽지 않고, **오직 메인 에이전트만이 파일을 읽어 다음 에이전트 프롬프트에 요약을 주입**한다.
+
+핵심: 에이전트는 서로 파일조차 직접 읽지 않고, **오직 메인 에이전트만이 파일을 읽어 다음 에이전트 프롬프트에 요약을 주입**한다. 반려 시 Review 리포트를 생산자에게 다시 주입하는 것이 루프의 핵심이다.
 
 ## 에러 핸들링 및 자가 치유
 
@@ -113,6 +141,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 | 데이터 모순 발견 | `findings.md` [데이터 충돌] 섹션에 기록 → 관련 에이전트들에게 모순점 피드백과 함께 재호출. 미해소 시 Reviewer 판정. |
 | 에이전트 간 데이터 충돌 | 출처를 명시하여 병기. 임의 삭제 금지. Reviewer가 최종 선택. |
 | 작업 상태 지연 | `tasks.md`의 `In-Progress` 항목을 점검 → `Blocked`로 전환 후 원인을 `findings.md`에 기록. |
+| 루프 한계 도달 (3회) | `findings.md`에 최종 반려 사유 기록 → `ask_user`로 사람의 개입을 요청. |
 
 ## 테스트 시나리오
 
@@ -124,17 +153,17 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 3. Phase 1에서 `tasks.md`·`findings.md` 초기화.
 4. Phase 2에서 @analyst → @coder 순차 실행 (병렬 가능한 구간은 배치 호출).
 5. Phase 3에서 @reviewer 호출 → `findings.md` 충돌 없음 확인.
-6. Phase 4에서 `_workspace/final/{output}.md` 생성.
+6. Phase 4에서 `_workspace/{plan_name}/final_{output}.md` 생성.
 7. Phase 5에서 사용자에게 요약 보고.
-8. **예상 결과:** `_workspace/final/{output}.md` 존재, `tasks.md` 전 항목 `Done`.
+8. **예상 결과:** `_workspace/{plan_name}/final_{output}.md` 존재, `tasks.md` 전 항목 `Done`.
 
-### 에러 흐름
-1. Phase 2에서 @coder가 `run_shell_command` 실패로 중단.
-2. 오케스트레이터가 `findings.md`에 에러 로그 기록 → 1회 재시도.
-3. 재시도 실패 → `ask_user`로 대체 경로 질의.
-4. 사용자 답변 반영 후 @coder 재호출 성공.
-5. Phase 3~5 정상 진행.
-6. 최종 보고에 "에러 복구: @coder 1회 재시도 후 사용자 확정 경로로 성공" 명시.
+### 에러 흐름 (Fix Loop)
+1. Phase 3에서 @reviewer가 @coder의 결과물을 반려 (보안 취약점 발견).
+2. 오케스트레이터가 `findings.md` [변경 요청]에 반려 사유 기록.
+3. 오케스트레이터가 @coder를 재호출하며 `@reviewer`의 리포트를 주입.
+4. @coder가 취약점을 수정하여 신규 산출물 생성.
+5. @reviewer 재검증 통과 → Phase 4로 진행.
+6. 최종 보고에 "에러 복구: @reviewer 반려 후 @coder 수정을 거쳐 최종 통과" 명시.
 
 ## description 작성 시 후속 작업 키워드 (필수)
 
@@ -145,6 +174,14 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 - 도메인 특화 일상 표현 (예: 런치 전략 하네스라면 "런치", "홍보", "트렌딩" 등)
 
 `description`에 후속 키워드가 누락되면 Gemini CLI의 트리거 라우터가 두 번째 호출부터 이 스킬을 선택하지 않는다.
+
+## [추후 개선 포인트 (Minor Issues)]
+
+본 오케스트레이터 템플릿의 향후 고도화 방향입니다.
+
+1.  **Advanced Task Management:** `tasks.md`에 `priority` 및 `depends_on` 메타데이터 필드를 도입하여 더 복잡한 비순환 방향 그래프(DAG) 형태의 태스크 조율 지원.
+2.  **Automated State Recovery:** 태스크가 `Blocked` 상태로 전환될 때, 오케스트레이터가 사전에 정의된 '대체 에이전트(Fallback Agent)'를 자동으로 할당하여 자가 치유 시도.
+3.  **Standardized Naming Convention:** 모든 하네스에서 에이전트 명칭을 `@{domain}-{role}` (예: `@web-coder`, `@api-analyst`) 형식으로 엄격히 강제하여 멀티 하네스 환경에서의 충돌 방지.
 ```
 
 ## 작성 및 실행 원칙
