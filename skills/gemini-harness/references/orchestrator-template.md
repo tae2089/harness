@@ -2,7 +2,7 @@
 
 오케스트레이터는 메인 에이전트가 오케스트레이션 로직을 실행하기 위해 사용하는 상위 스킬이다. Gemini CLI 환경은 **서브에이전트 간 직접 통신이 불가능**하므로, 메인 에이전트가 유일한 **Data Broker**로서 `findings.md`·`tasks.md`를 매개로 팀을 조율한다. 본 템플릿은 Gemini CLI 한 가지 실행 모드(파일 기반 브로커링)만을 다룬다.
 
-> **주의:** Claude Code의 `TeamCreate`, `SendMessage`, `TaskCreate`, 서브에이전트 병렬 실행 플래그(`run_in_background`) 같은 팀/태스크 API는 Gemini CLI에 존재하지 않는다. 절대 사용하지 말고, 아래 파일 기반 프로토콜을 따른다. (단, **셸 명령 수준의 백그라운드 실행**은 Gemini CLI의 `run_shell_command`가 지원하므로, dev server·빌드 워처·장기 테스트 데몬 띄우기 용도로는 별도로 사용 가능하다.)
+> **주의:** Claude Code의 `TeamCreate`, `SendMessage`, `TaskCreate`, `run_in_background` 같은 팀/태스크 전용 API는 Gemini CLI에 존재하지 않는다. 서브에이전트 호출은 **`invoke_agent` 도구**를 사용하며, 병렬 실행이 필요한 경우 도구 호출 시 **`wait_for_previous: false`** 파라미터를 지정하여 구현해야 한다. (단, **셸 명령 수준의 백그라운드 실행**은 `run_shell_command`가 지원하므로, dev server나 데몬 띄우기 용도로 사용 가능하다.)
 
 ---
 

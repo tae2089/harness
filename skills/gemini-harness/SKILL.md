@@ -240,7 +240,8 @@ cloud-deploy/
     └── 중앙 findings.md에는 요약과 아카이브 경로만 유지
 ```
 
-**병렬성:** 서브에이전트 간 병렬 실행 플래그(`run_in_background`)는 없다. 의존성이 없는 에이전트는 단일 응답 턴 안에서 연속 호출하는 **배치 패턴**으로만 병렬성을 확보한다. (단, 셸 명령은 `run_shell_command`의 백그라운드 옵션으로 별개 병렬 구동 가능.)
+**병렬성:** Claude Code의 `run_in_background` 플래그는 존재하지 않지만, Gemini CLI에서는 **`invoke_agent` 호출 시 `wait_for_previous: false`**를 사용하여 병렬 실행을 구현한다. 의존성이 없는 에이전트들을 단일 응답 턴 내에서 배치 호출하여 시간을 단축한다. (단, 셸 명령은 `run_shell_command`의 백그라운드 옵션으로 별개 병렬 구동 가능.)
+
 
 #### 5-1. 데이터 전달 프로토콜
 
