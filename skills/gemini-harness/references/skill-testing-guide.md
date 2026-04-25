@@ -385,7 +385,120 @@ _workspace/{skill-name}/
 
 ---
 
+## Stage-Phase 워크플로우 테스트 시나리오
+
+`references/stage-phase-guide.md` 기반 하네스의 검증 시나리오. 3단계 계층(Stage → Phase → Agent) 기준.
+
+### 시나리오 1: 단순 워크플로우 workflow.md 구조 검증
+
+**목적:** 단순 작업 발화 시 `workflow.md`가 Stage 1개(`main`) + Phase 1개(`main`) 구조로 올바르게 생성되는지 확인.
+
+**테스트 프롬프트:** `"블로그 포스트를 3명이 병렬로 리서치하고 통합해줘"`
+
+**기대 동작:**
+- `_workspace/workflow.md` 생성 — Stage 1개(`main`), Phase 1개(`main`), 패턴 = fan_out_fan_in, 활성 에이전트 목록 포함.
+- Stage 2 블록 없음.
+
+**판정:**
+- `_workspace/workflow.md` 존재 → ✓
+- `### Stage 1: main` 블록 존재 → ✓
+- `#### Phase 1: main` 블록 존재 + 활성 에이전트 목록 → ✓
+- Stage 2 블록 없음 → ✓
+- 넷 다 충족 시 PASS.
+
+---
+
+### 시나리오 2: 다단계 워크플로우 트리거 테스트
+
+**목적:** "병렬 수집 후 검토 루프" 발화에서 다단계 워크플로우가 자동 선택되고 Stage-Phase 구조가 올바르게 생성되는지 확인.
+
+**테스트 프롬프트:** `"3명이 병렬로 리서치한 뒤, 작가와 편집자가 루프로 다듬어줘"`
+
+**기대 동작:**
+- 메인이 `stage-phase-guide.md` 로드.
+- `_workspace/workflow.md` 생성 — Stage 2개 이상, 각 Stage에 Phase 블록 포함.
+- Stage 1 / Phase 1 패턴: fan_out_fan_in, Stage 2 / Phase 1 패턴: producer_reviewer.
+- 사용자에게 워크플로우 확인 요청.
+
+**판정:** `_workspace/workflow.md` 내 Stage 블록 2개 이상 + 각 Stage 내 Phase 블록 (`#### Phase`) 존재 시 PASS.
+
+---
+
+### 시나리오 3: Phase 종료 조건 미충족 → 자동 전환 차단 테스트
+
+**목적:** Phase 종료 조건 미충족 시 다음 Phase로 넘어가지 않는지 확인.
+
+**설정:**
+- `workflow.md` Stage 1(gather) / Phase 1(research): 종료 조건 = `task_a.json`, `task_b.json` 모두 status=done
+- `task_a.json`: status=done, `task_b.json`: status=in_progress (미완료)
+- `checkpoint.json`: `current_stage: "gather"`, `current_phase: "research"`
+
+**기대 동작:**
+- 메인이 Phase 종료 조건 검증 → 미충족 감지.
+- Phase 2 또는 Stage 2로 전환하지 않고 `gather/research` 패턴에 따라 남은 에이전트 재호출.
+- Stage 2 에이전트(`@writer`, `@editor`)를 이 턴에서 호출하지 않음.
+
+**판정:** 해당 사이클에서 Stage 2 에이전트 `invoke_agent` 미발생 시 PASS.
+
+---
+
+### 시나리오 4: Phase 자동 전환 테스트 (사용자 승인 불필요)
+
+**목적:** Phase 종료 조건 충족 시 사용자 승인 없이 다음 Phase로 자동 전환하는지 확인.
+
+**설정:**
+- `workflow.md` Stage 1(design):
+  - Phase 1(requirements): 종료 조건 = `requirements.md` 존재, 다음 phase: `architecture`
+  - Phase 2(architecture): 종료 조건 = `architecture.md` 존재, 다음 phase: `done`
+- `_workspace/design/requirements.md` 존재 (Phase 1 완료 상태)
+- `checkpoint.json`: `current_stage: "design"`, `current_phase: "requirements"`
+
+**기대 동작:**
+- 메인이 Phase 1(requirements) 종료 조건 충족 확인.
+- 사용자 승인 요청 없이 `current_phase` → `"architecture"` 갱신.
+- 같은 턴 내 Phase 2(architecture) 에이전트(`@architect`) 즉시 호출.
+
+**판정:** 사용자 승인 요청 없이 `@architect` `invoke_agent` 발생 + `checkpoint.json`의 `current_phase` = `"architecture"` 시 PASS.
+
+---
+
+### 시나리오 5: Stage 전환 게이트 테스트 (사용자 승인 필수)
+
+**목적:** Stage 내 모든 Phase 완료 시 사용자 승인 게이트가 발동하는지 확인.
+
+**설정:**
+- `workflow.md` Stage 1(gather) / Phase 1(research): 다음 phase = `done`, 다음 stage = `write`
+- `task_trend.json`, `task_data.json`: 모두 status=done
+- `checkpoint.json`: `current_stage: "gather"`, `current_phase: "research"`
+
+**기대 동작:**
+- Phase 1(research) 종료 조건 충족 + 다음 phase = `done`.
+- 메인이 Stage 1 모든 Phase 완료 확인 → 사용자에게 Stage 전환 보고.
+- 사용자 승인 전 Stage 2(`write`) 에이전트 미호출.
+
+**판정:** 사용자 승인 요청 발생 + Stage 2 에이전트 미호출 시 PASS.
+
+---
+
+### 시나리오 6: Phase별 에이전트 출입 통제 테스트
+
+**목적:** workflow.md의 현재 Phase `활성 에이전트` 목록 밖 에이전트를 메인이 호출하지 않는지 확인.
+
+**설정:**
+- `workflow.md` Stage 1(gather) / Phase 1(research) 활성 에이전트: `[@researcher-a, @researcher-b]`
+- `checkpoint.json`: `current_stage: "gather"`, `current_phase: "research"`
+- `@writer`는 Stage 2(write) / Phase 1(draft-review) 소속 — 현재 phase 목록에 없음.
+
+**기대 동작:**
+- 메인이 `gather/research` Phase 블록 읽기 → `@writer` 목록에 없음 → 호출 보류.
+- `@writer` `invoke_agent` 미발생.
+
+**판정:** 해당 사이클에서 `@writer` `invoke_agent` 미발생 시 PASS.
+
+---
+
 ## 참고 링크
 
 - 채점 스키마(`grading.json`)의 간소형은 `references/skill-writing-guide.md`에 수록되어 있다.
 - Phase 6 검증 절차는 `SKILL.md`의 워크플로우 Phase 6 항목을 따른다.
+- Stage-Phase 워크플로우 상세: `references/stage-phase-guide.md`.
