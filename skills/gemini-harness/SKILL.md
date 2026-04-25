@@ -368,8 +368,8 @@ cloud-deploy/
 
 각 스킬의 description이 올바르게 트리거되는지 검증한다.
 
-1. **Should-trigger 쿼리 (8~10개)** — 스킬을 트리거해야 하는 다양한 표현(공식적/캐주얼, 명시적/암시적, 후속 작업 키워드 포함).
-2. **Should-NOT-trigger 쿼리 (8~10개)** — 키워드가 유사하지만 다른 도구/스킬이 적합한 "near-miss" 쿼리.
+1. **Should-trigger 쿼리 (10개)** — 스킬을 트리거해야 하는 다양한 표현(공식적/캐주얼, 명시적/암시적, 후속 작업 키워드 포함).
+2. **Should-NOT-trigger 쿼리 (10개)** — 키워드가 유사하지만 다른 도구/스킬이 적합한 "near-miss" 쿼리.
 
 **near-miss 작성 핵심:** "피보나치 함수 작성" 같이 명백히 무관한 쿼리는 테스트 가치가 없다. "이 엑셀 파일의 차트를 PNG로 추출해줘"(xlsx 스킬 vs 이미지 변환)처럼 **경계가 모호한 쿼리**가 좋은 테스트 케이스다.
 
@@ -477,7 +477,7 @@ cloud-deploy/
 - [ ] 스킬 description이 적극적("pushy")으로 작성됨 — **후속 작업 키워드 포함**.
 - [ ] SKILL.md 본문이 500줄 이내, 초과 시 `references/`로 분리.
 - [ ] 테스트 프롬프트 2~3개로 실행 검증 완료.
-- [ ] 트리거 검증(Should-trigger + Should-NOT-trigger 각 8~10개) 완료.
+- [ ] 트리거 검증(Should-trigger + Should-NOT-trigger 각 10개, 총 20개) 완료.
 - [ ] **오케스트레이터 Phase 0에 컨텍스트 및 체크포인트 확인 단계**(초기/후속/부분/재개 판별) 존재.
 - [ ] **GEMINI.md 변경 이력**에 에이전트/스킬 추가·삭제·수정 기록.
 - [ ] Claude Code 전용 API(`TeamCreate`/`SendMessage`/`TaskCreate`/서브에이전트 `run_in_background`) 미사용 확인.
