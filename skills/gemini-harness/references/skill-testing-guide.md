@@ -329,6 +329,33 @@ _workspace/{skill-name}/
 - `_workspace/`는 삭제하지 않음 — 사후 검증·감사 추적·블라인드 비교용.
 - `evals.json`에 **전체 세션의 평가 메타데이터**(스킬 버전, 총 iteration 수, 최종 pass rate 등)를 누적 기록해 하네스의 장기 품질 추이를 추적한다.
 
+**`evals.json` 스키마:**
+```json
+{
+  "skill_name": "pdf-extractor",
+  "skill_version": "1.0.0",
+  "created_at": "2026-04-25T10:00:00Z",
+  "total_iterations": 3,
+  "final_pass_rate": 0.85,
+  "iterations": [
+    {
+      "iteration": 1,
+      "eval_count": 3,
+      "pass_rate": 0.67,
+      "timestamp": "2026-04-25T10:00:00Z",
+      "notes": "초기 버전 — assertion 3개 중 2개 통과"
+    },
+    {
+      "iteration": 2,
+      "eval_count": 3,
+      "pass_rate": 0.83,
+      "timestamp": "2026-04-25T11:00:00Z",
+      "notes": "다단계 표 처리 개선 후 재테스트"
+    }
+  ]
+}
+```
+
 ---
 
 ## 참고 링크

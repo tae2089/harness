@@ -22,9 +22,9 @@ harness/
     └── gemini-harness/
         ├── SKILL.md                        # 메인 스킬 정의
         └── references/
-            ├── agent-design-patterns.md    # 6대 패턴 + 도구 매핑
+            ├── agent-design-patterns.md    # 7대 패턴 + 도구 매핑
             ├── orchestrator-template.md    # 오케스트레이터 고도화 템플릿
-            ├── team-examples.md            # 실전 협업 사례 7개
+            ├── team-examples.md            # 실전 협업 사례 8개
             ├── skill-writing-guide.md      # 스킬 작성 가이드
             ├── skill-testing-guide.md      # 스킬 테스트/검증 가이드
             └── qa-agent-guide.md           # QA 에이전트 전문 가이드
@@ -88,7 +88,7 @@ Coding Agent에서 다음과 같은 요청 시 `gemini-harness` 스킬이 자동
 
 - `references/agent-design-patterns.md` — 7대 패턴, 에이전트 정의 구조, 도구 매핑
 - `references/orchestrator-template.md` — 오케스트레이터 Phase 0~5, 에러 핸들링
-- `references/team-examples.md` — 완성형 에이전트 파일 포함 7개 사례
+- `references/team-examples.md` — 완성형 에이전트 파일 포함 8개 사례
 - `references/skill-writing-guide.md` — 작성 패턴, 데이터 스키마 표준
 - `references/skill-testing-guide.md` — 테스트/평가/트리거 검증
 - `references/qa-agent-guide.md` — 통합 정합성 검증, 경계면 버그 패턴

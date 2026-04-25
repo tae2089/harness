@@ -143,7 +143,8 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 {
   "agent": "@coder",
   "task_id": "T2",
-  "status": "Done",
+  "status": "Done",       // "Done" | "Blocked"
+  "retries": 0,           // 재시도 누적 횟수 (0~3). 3 초과 시 Blocked 전환
   "evidence": "Reviewer PASS report: _workspace/plan/03_review.md",
   "artifact_path": "_workspace/plan/02_code.md"
 }
@@ -201,7 +202,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 | 상황                    | 오케스트레이터 대응 로직                                                                                                    |
 | :---------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| 에이전트 1명 실패       | `findings.md`에 에러 원인 기록 → 1회 재시도. 재실패 시 `ask_user`로 대체 경로 질문. **해결 전까지 절대 Done 처리 금지.**    |
+| 에이전트 1명 실패       | `findings.md`에 에러 원인 기록 → **최대 3회 재시도** (매회 접근법 변경). 3회 초과 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. **임의 Skip·Done 처리 절대 금지.**    |
 | 에이전트 과반 실패      | `tasks.md`에 중단 지점 저장 → 진행 여부를 `ask_user`로 확인 후 결정.                                                        |
 | 타임아웃                | **Phase 0 자동 감지**: `checkpoint.json`을 읽어 `last_successful_phase` 이후부터 즉시 재개.                                 |
 | 데이터 모순 발견        | `findings.md` [데이터 충돌] 섹션에 기록 → 관련 에이전트들에게 모순점 피드백과 함께 재호출. 미해소 시 Reviewer 판정.         |
