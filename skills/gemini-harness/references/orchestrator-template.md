@@ -64,6 +64,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    - **순차 (Pipeline):** 이전 결과가 반드시 필요하면 `wait_for_previous: true`로 설정한다.
 
    **병렬 + 순차 혼합 예시 (Fan-out → 통합):**
+
    ```
    # 1단계: 병렬 호출 (단일 턴 내 동시 실행)
    invoke_agent(agent_name="researcher-market", wait_for_previous=false,
@@ -143,8 +144,8 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 {
   "agent": "@coder",
   "task_id": "T2",
-  "status": "Done",       // "Done" | "Blocked"
-  "retries": 0,           // 재시도 누적 횟수 (0~3). 3 초과 시 Blocked 전환
+  "status": "Done", // "Done" | "Blocked"
+  "retries": 0, // 재시도 누적 횟수 (0~3). 3 초과 시 Blocked 전환
   "evidence": "Reviewer PASS report: _workspace/plan/03_review.md",
   "artifact_path": "_workspace/plan/02_code.md"
 }
@@ -200,15 +201,16 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 ## 에러 핸들링 및 자가 치유
 
-| 상황                    | 오케스트레이터 대응 로직                                                                                                    |
-| :---------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| 에이전트 1명 실패       | `findings.md`에 에러 원인 기록 → **최대 3회 재시도** (매회 접근법 변경). 3회 초과 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. **임의 Skip·Done 처리 절대 금지.**    |
-| 에이전트 과반 실패      | `tasks.md`에 중단 지점 저장 → 진행 여부를 `ask_user`로 확인 후 결정.                                                        |
-| 타임아웃                | **Phase 0 자동 감지**: `checkpoint.json`을 읽어 `last_successful_phase` 이후부터 즉시 재개.                                 |
-| 데이터 모순 발견        | `findings.md` [데이터 충돌] 섹션에 기록 → 관련 에이전트들에게 모순점 피드백과 함께 재호출. 미해소 시 Reviewer 판정.         |
-| 에이전트 간 데이터 충돌 | 출처를 명시하여 병기. 임의 삭제 금지. Reviewer가 최종 선택.                                                                 |
-| 작업 상태 지연          | `tasks.md`의 `In-Progress` 항목을 점검 → `Blocked`로 전환 후 원인을 `findings.md`에 기록.                                   |
-| 루프 한계 도달 (3회)    | `findings.md`에 최종 반려 사유 기록 → **태스크를 Blocked로 변경 후 반드시 ask_user로 사람의 개입을 요청 (임의 Skip 금지).** |
+| 상황                    | 오케스트레이터 대응 로직                                                                                                                                                 |
+| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 에이전트 1명 실패       | `findings.md`에 에러 원인 기록 → **최대 3회 재시도** (매회 접근법 변경). 3회 초과 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. **임의 Skip·Done 처리 절대 금지.** |
+| 에이전트 과반 실패      | `tasks.md`에 중단 지점 저장 → 진행 여부를 `ask_user`로 확인 후 결정.                                                                                                     |
+| 타임아웃                | **Phase 0 자동 감지**: `checkpoint.json`을 읽어 `last_successful_phase` 이후부터 즉시 재개.                                                                              |
+| `max_turns` 소진        | 산출물 파일 존재·완성도 확인. 미완성이면 **작업 범위를 축소**하거나 여러 서브태스크로 분할해 재호출. 재시도 후에도 반복 소진 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. 에이전트 `max_turns` 값 상향도 함께 제안. |
+| 데이터 모순 발견        | `findings.md` [데이터 충돌] 섹션에 기록 → 관련 에이전트들에게 모순점 피드백과 함께 재호출. 미해소 시 Reviewer 판정.                                                      |
+| 에이전트 간 데이터 충돌 | 출처를 명시하여 병기. 임의 삭제 금지. Reviewer가 최종 선택.                                                                                                              |
+| 작업 상태 지연          | `tasks.md`의 `In-Progress` 항목을 점검 → `Blocked`로 전환 후 원인을 `findings.md`에 기록.                                                                                |
+| 루프 한계 도달 (3회)    | `findings.md`에 최종 반려 사유 기록 → **태스크를 Blocked로 변경 후 반드시 ask_user로 사람의 개입을 요청 (임의 Skip 금지).**                                              |
 
 ## 테스트 시나리오
 
@@ -251,12 +253,12 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 `description`에 후속 키워드가 누락되면 Gemini CLI의 트리거 라우터가 두 번째 호출부터 이 스킬을 선택하지 않는다.
 
-## [추후 개선 포인트 (Minor Issues)]
+## [추후 개선 포인트]
 
-본 오케스트레이터 템플릿의 향후 고도화 방향입니다.
+본 오케스트레이터 템플릿의 향후 고도화 방향.
 
 1.  **Advanced Task Management:** `tasks.md`에 `priority` 및 `depends_on` 메타데이터 필드를 도입하여 더 복잡한 비순환 방향 그래프(DAG) 형태의 태스크 조율 지원.
-2.  **Automated State Recovery:** 태스크가 `Blocked` 상태로 전환될 때, 오케스트레이터가 사전에 정의된 '대체 에이전트(Fallback Agent)'를 자동으로 할당하여 자가 치유 시도.
+2.  **Automated Fallback Agent:** 태스크가 `Blocked`로 전환될 때(`Blocked` 상태 자체는 구현됨), 오케스트레이터가 사전에 정의된 '대체 에이전트'를 **자동으로** 할당하는 자가 치유 시도. 현재는 `ask_user`로 사람에게 위임.
 3.  **Standardized Naming Convention:** 모든 하네스에서 에이전트 명칭을 `@{domain}-{role}` (예: `@web-coder`, `@api-analyst`) 형식으로 엄격히 강제하여 멀티 하네스 환경에서의 충돌 방지.
 
 ```

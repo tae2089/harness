@@ -281,7 +281,7 @@ Assertion 기반 채점 결과:
 }
 ```
 
-**필드명 주의:** `text`, `passed`, `evidence`를 정확히 사용한다(`name`·`met`·`details` 등 변형 금지). 하네스의 Phase 5 검증과 `skill-testing-guide.md` 4절이 이 스키마를 전제로 한다.
+**필드명 주의:** `text`, `passed`, `evidence`를 정확히 사용한다(`name`·`met`·`details` 등 변형 금지). 하네스의 Phase 6 검증과 `skill-testing-guide.md` 4절이 이 스키마를 전제로 한다.
 
 ### 8-3. timing.json
 

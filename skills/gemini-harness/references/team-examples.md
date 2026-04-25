@@ -489,7 +489,7 @@ Phase 4: 최종 조치 완료 보고 및 checkpoint.json을 'Resolved'로 마킹
 ### 에이전트 정의 파일
 
 - 경로: `.gemini/agents/{agent-name}.md` (프로젝트) 또는 `~/.gemini/agents/{agent-name}.md` (사용자).
-- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model: "gemini-3.1-pro-preview"`, `tools` (반드시 `ask_user`·`activate_skill` 포함).
+- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커 → `"gemini-3-flash-preview"` 또는 `"inherit"`), `tools` (반드시 `ask_user`·`activate_skill` 포함).
 - 권장 YAML: `temperature`(역할별 0.2~0.7), `max_turns`(5~20).
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Gemini CLI), 에러 핸들링.
 
