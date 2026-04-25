@@ -1,6 +1,6 @@
 # 스킬 테스트 & 반복 개선 가이드
 
-하네스에서 생성한 스킬의 품질을 검증하고 반복적으로 개선하는 방법론. `SKILL.md` Phase 5(통합 및 검증)의 보충 레퍼런스. 본 가이드는 **Gemini CLI 오케스트레이션 환경**(서브에이전트 간 직접 통신 불가, 메인 에이전트가 Grader·Analyzer)을 전제로 작성되었다.
+하네스에서 생성한 스킬의 품질을 검증하고 반복적으로 개선하는 방법론. `SKILL.md` Phase 6(검증 및 테스트)의 보충 레퍼런스. 본 가이드는 **Gemini CLI 오케스트레이션 환경**(서브에이전트 간 직접 통신 불가, 메인 에이전트가 Grader·Analyzer)을 전제로 작성되었다.
 
 ---
 
@@ -210,7 +210,34 @@ Assertion 기반 채점을 수행하고, 산출물에서 검증 가능한 주장
 - 고분산 eval (결과가 실행마다 크게 달라짐 → 불안정)
 - 시간/토큰 트레이드오프 (스킬이 품질은 높이지만 비용도 높이는 경우)
 
-결과는 `_workspace/iteration-N/benchmark.json`과 `findings.md` [핵심 통찰]에 기록한다.
+결과는 `_workspace/{skill-name}/iteration-N/benchmark.json`과 `findings.md` [핵심 통찰]에 기록한다.
+
+**`benchmark.json` 스키마:**
+```json
+{
+  "iteration": 1,
+  "timestamp": "2026-04-25T12:00:00Z",
+  "eval_count": 3,
+  "with_skill": {
+    "pass_rate": 0.83,
+    "avg_tokens": 45230,
+    "avg_duration_ms": 18500
+  },
+  "without_skill": {
+    "pass_rate": 0.50,
+    "avg_tokens": 38100,
+    "avg_duration_ms": 12300
+  },
+  "skill_delta": {
+    "pass_rate_improvement": 0.33,
+    "token_overhead": 7130,
+    "duration_overhead_ms": 6200
+  },
+  "non_discriminating": ["eval-simple-csv-export"],
+  "high_variance": [],
+  "notes": "단순 CSV 추출 assertion은 두 구성 모두 통과 — 제거 대상"
+}
+```
 
 ---
 
@@ -361,4 +388,4 @@ _workspace/{skill-name}/
 ## 참고 링크
 
 - 채점 스키마(`grading.json`)의 간소형은 `references/skill-writing-guide.md`에 수록되어 있다.
-- Phase 5 검증 절차는 `SKILL.md`의 워크플로우 Phase 5 항목을 따른다.
+- Phase 6 검증 절차는 `SKILL.md`의 워크플로우 Phase 6 항목을 따른다.
