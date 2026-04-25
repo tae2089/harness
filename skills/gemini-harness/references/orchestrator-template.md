@@ -62,6 +62,24 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 3. **병렬/순차 제어 (`wait_for_previous`):**
    - **병렬 (Fan-out):** 의존성이 없는 에이전트 호출 시 `wait_for_previous: false`로 설정하여 단일 턴 내 동시 실행을 유도한다.
    - **순차 (Pipeline):** 이전 결과가 반드시 필요하면 `wait_for_previous: true`로 설정한다.
+
+   **병렬 + 순차 혼합 예시 (Fan-out → 통합):**
+   ```
+   # 1단계: 병렬 호출 (단일 턴 내 동시 실행)
+   invoke_agent(agent_name="researcher-market", wait_for_previous=false,
+     prompt="시장 트렌드를 조사해 _workspace/{plan_name}/mkt.md에 기록하라.")
+
+   invoke_agent(agent_name="researcher-tech", wait_for_previous=false,
+     prompt="기술 타당성을 조사해 _workspace/{plan_name}/tech.md에 기록하라.")
+
+   # 2단계: 순차 호출 (위 두 에이전트 완료 후 실행)
+   invoke_agent(agent_name="strategist", wait_for_previous=true,
+     prompt="_workspace/{plan_name}/mkt.md와 tech.md를 모두 읽고
+             findings.md [데이터 충돌]을 해소한 뒤 최종 전략을 수립하라.")
+   ```
+
+   > **주의:** `wait_for_previous: false`로 호출된 에이전트들은 **단일 응답 턴 내에서** 병렬 실행된다. 이후 `wait_for_previous: true` 호출은 앞선 모든 병렬 에이전트 완료를 기다린 후 실행된다.
+
 4. **결과 파싱 및 동적 핸드오프 (Handoff):**
    - 에이전트 응답에서 `[NEXT_AGENT: @expert-name]` 구문이 발견되면, 메인 에이전트는 계획된 다음 단계 대신 추천된 전문가를 우선 호출하는 동적 위임을 수행할 수 있다.
 5. **Thread-safe 상태 통합 (Aggregation):**

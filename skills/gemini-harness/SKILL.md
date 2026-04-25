@@ -364,6 +364,8 @@ cloud-deploy/
 
 평가 결과는 `references/skill-writing-guide.md`의 `grading.json` 스키마에 맞춰 `_workspace/evals/{timestamp}/grading.json`에 기록한다.
 
+> **경로 구분:** `_workspace/evals/{timestamp}/grading.json`은 **하네스 구축 시 생성 스킬의 일회성 검증** 경로다. 스킬을 장기적으로 반복 개선할 때는 `references/skill-testing-guide.md`의 `_workspace/{skill-name}/iteration-N/eval-{id}/{variant}/grading.json` 구조를 사용한다.
+
 #### 6-4. 트리거 검증
 
 각 스킬의 description이 올바르게 트리거되는지 검증한다.
