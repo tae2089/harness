@@ -1,6 +1,6 @@
 ---
 name: gemini-harness
-description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협업 스킬을 설계하는 Gemini CLI 메타 프레임워크. (1) '하네스 구성해줘', '하네스 구축/설계/엔지니어링' 요청 시, (2) 새로운 도메인/프로젝트에 대한 자동화 체계를 구축할 때, (3) 하네스를 재구성·확장할 때, (4) '하네스 점검', '하네스 감사', '하네스 현황', '에이전트/스킬 동기화' 등 기존 하네스 운영/유지보수 요청 시, (5) 이전 결과 수정/보완/재실행 요청 시 **반드시 이 스킬을 먼저 호출하라.** 6대 아키텍처 패턴과 엄격한 도구 제어 기반으로 설계한다."
+description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협업 스킬을 설계하는 Gemini CLI 메타 프레임워크. (1) '하네스 구성해줘', '하네스 구축/설계/엔지니어링' 요청 시, (2) 새로운 도메인/프로젝트에 대한 자동화 체계를 구축할 때, (3) 하네스를 재구성·확장할 때, (4) '하네스 점검', '하네스 감사', '하네스 현황', '에이전트/스킬 동기화' 등 기존 하네스 운영/유지보수 요청 시, (5) 이전 결과 수정/보완/재실행 요청 시 **반드시 이 스킬을 먼저 호출하라.** 7대 아키텍처 패턴과 엄격한 도구 제어 기반으로 설계한다."
 ---
 
 # Harness — Subagent Orchestration & Skill Architect
@@ -9,11 +9,11 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 **핵심 원칙:**
 
-1. **6대 핵심 아키텍처 패턴 적용:** 문제 특성에 맞는 최적의 협업 구조(Pipeline, Fan-out/Fan-in, Expert Pool, Producer-Reviewer, Supervisor, Hierarchical)를 선택한다. 상세: `references/agent-design-patterns.md`.
+1. **7대 핵심 아키텍처 패턴 적용:** 문제 특성에 맞는 최적의 협업 구조(Pipeline, Fan-out/Fan-in, Expert Pool, Producer-Reviewer, Supervisor, Hierarchical, Handoff)를 선택한다. 상세: `references/agent-design-patterns.md`.
 2. **엄격한 도구 권한 제어:** 에이전트 역할에 최적화된 도구만 할당하며, `tools: ["*"]`는 금지한다. 단, **모든 에이전트는 다음 두 도구를 반드시 포함**한다.
    - `ask_user`: 모호한 지시·데이터 충돌 시 추측 대신 사용자에게 확인 질의.
    - `activate_skill`: `.gemini/skills/` 아래 절차 스킬(방법론·체크리스트·프로토콜)을 에이전트가 런타임에 로드하여 실행하기 위해 필수.
-3. **메인 에이전트 오케스트레이션:** Gemini CLI에는 서브에이전트 간 직접 통신(`SendMessage`) API가 없으므로, 메인 에이전트가 유일한 데이터 브로커(`_workspace/findings.md`)이자 태스크 보드(`_workspace/tasks.md`) 관리자가 된다.
+3. **메인 에이전트 오케스트레이션 및 영속성:** Gemini CLI에는 서브에이전트 간 직접 통신(`SendMessage`) API가 없으므로, 메인 에이전트가 유일한 데이터 브로커(`_workspace/findings.md`)이자 상태 관리자(`_workspace/checkpoint.json`) 및 태스크 보드(`_workspace/tasks.md`) 관리자가 된다.
 4. **`.gemini/agents/` + `.gemini/skills/` + `GEMINI.md` 3요소 생성.** 슬래시 커맨드(`.gemini/commands/`)는 만들지 않는다.
 5. **하네스는 고정물이 아니라 진화하는 시스템이다.** 매 실행 후 피드백을 반영하고, 에이전트·스킬·GEMINI.md를 지속 갱신한다.
 6. **Plan Mode 필수 적용 (Critical):** 모든 하네스 설계, 생성 및 확장 작업 시작 전 반드시 `enter_plan_mode`를 호출한다. 리서치와 설계 단계를 격리하여 복잡한 오케스트레이션 로직의 안정성을 확보하고, 사용자에게 최종 승인받은 계획만을 코드로 구현한다. 단, yolo mode일 경우에는 바로 실행한다.
@@ -52,7 +52,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 3. Phase 0 감사 결과를 기반으로 기존 에이전트/스킬과의 충돌·중복 분석.
 4. 프로젝트 코드베이스 탐색 — 기술 스택, 데이터 모델, 주요 모듈 파악.
 5. **사용자 숙련도 감지:** 대화의 맥락 단서(사용 용어, 질문 수준)로 기술 수준을 파악하고, 이후 커뮤니케이션 톤을 조절한다. 코딩 경험이 적은 사용자에게는 "assertion", "JSON schema", "브로커링" 같은 용어를 설명 없이 쓰지 않는다.
-6. **아키텍처 패턴 매칭:** 6대 패턴 중 최적 구조를 선택한다.
+6. **아키텍처 패턴 매칭:** 7대 패턴 중 최적 구조를 선택한다.
 
 ---
 
@@ -74,6 +74,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 - **생성-검증 (Producer-Reviewer):** 생성 후 품질 검수 루프.
 - **감독자 (Supervisor):** 메인이 상태를 보며 동적 분배.
 - **계층적 위임 (Hierarchical):** 팀장 에이전트가 하위 에이전트에 재귀 위임(2단계 이내 권장).
+- **핸드오프 (Handoff):** 에이전트가 작업 완료 후 다음 전문가를 직접 추천하여 위임.
 
 **상호작용 스타일 선택 (Interaction Styles - 필수):** 구조적 패턴 외에도, 에이전트와 대화하는 스타일을 정의한다.
 
@@ -102,9 +103,10 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 각 에이전트 유형(Analyst / Architect / Coder / Reviewer / Operator)에 맞는 표준 도구 + 관련 MCP 도구를 할당한다. 표 전문은 `references/agent-design-patterns.md`의 "에이전트 유형별 표준 도구 세트" 참조.
 
-#### 2-4. 오케스트레이션 프로토콜 설계
+#### 2-4. 오케스트레이션 및 영속성 프로토콜 설계
 
 - **데이터 흐름:** `_workspace/` 내의 파일 기반 데이터 교환 경로를 설계한다.
+- **영속성 프로토콜:** 실행 중단 시 재개를 위한 `checkpoint.json` 스키마 및 갱신 시점을 정의한다.
 - **데이터 브로커링:** 메인 에이전트가 `findings.md`·`tasks.md`를 통해 에이전트 간 통찰을 중개하는 경로를 정의한다.
 - **충돌 중개:** 에이전트 간 산출물이 상충할 때 메인이 어떤 에이전트에게 최종 판정을 맡길지 사전 지정.
 
@@ -118,15 +120,15 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
    - `name`: slug 형태의 고유 이름.
    - `description`: pushy하게 작성. 트리거 상황·후속 작업 키워드 포함.
    - `kind: local`
-   - `model: "gemini-3.1-pro-preview"`
+   - `model`: 역할에 따라 선택. 오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커(Coder·Analyst·Reviewer·Operator) → `"gemini-3-flash-preview"` 권장. `"inherit"`으로 메인 세션 모델 상속도 가능.
    - `tools`: **제한된 목록** (모든 에이전트에 `ask_user`, `activate_skill` 기본 포함).
 
 2. **선택 필드(역할에 따라 권장):**
 
-   | 역할                                | temperature | max_turns |
-   | ----------------------------------- | ----------- | --------- |
-   | Reviewer·QA·Analyst (결정론적 산출) | 0.2         | 5 ~ 10    |
-   | Architect (설계)                    | 0.3 ~ 0.5   | 10 ~ 15   |
+   | 역할                          | temperature | max_turns |
+   | ----------------------------- | ----------- | --------- |
+   | Reviewer·QA (결정론적 산출)  | 0.2         | 5 ~ 10    |
+   | Analyst·Architect (탐색·설계) | 0.3 ~ 0.5   | 10 ~ 15   |
    | Coder                               | 0.2 ~ 0.3   | 15 ~ 20   |
    | Operator (인프라·배포)              | 0.1 ~ 0.2   | 6 ~ 8     |
    | 창작·브레인스토밍                   | 0.7 이상    | 10 ~ 15   |
@@ -150,7 +152,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 ### Phase 4: 스킬 생성
 
-각 에이전트가 사용할 절차 스킬을 `{프로젝트}/.gemini/skills/{name}/SKILL.md`에 생성한다. 상세: `references/skill-writing-guide.md`.
+각 에이전트가 사용할 절차 스킬을 `{프로젝트}/.gemini/skills/{name}/SKILL.md`에 생성한다. `.agents/skills/`는 `.gemini/skills/`의 공식 별칭이며 같은 티어에서 더 높은 우선순위를 가진다. 상세: `references/skill-writing-guide.md`.
 
 #### 4-1. 스킬 구조
 
@@ -232,9 +234,11 @@ cloud-deploy/
 
 ```
 [메인 에이전트 (오케스트레이터)]
+    ├── checkpoint.json 관리 (상태 영속화 및 재개 로직)
     ├── findings.md 갱신 (작업 중 상세 기록)
     ├── tasks.md 갱신 (태스크 보드)
     ├── @agent-1 호출 (findings 요약 + tasks 할당 주입)
+    ├── 결과 분석 및 동적 위임 (Handoff 파싱)
     ├── 산출물 읽고 findings.md 업데이트
     ├── 모든 작업 완료 후 findings.md를 _workspace/{plan_name}/findings.md로 아카이브
     └── 중앙 findings.md에는 요약과 아카이브 경로만 유지
@@ -252,9 +256,10 @@ cloud-deploy/
 | **파일 기반 (기본)**     | `_workspace/{plan_name}/`에 산출물 기록                                         | 대용량 데이터, 구조화된 산출물, 감사 추적 |
 | **findings.md 브로커링** | 메인이 산출물을 읽어 요약을 `findings.md`에 기록, 다음 에이전트 프롬프트에 주입 | 에이전트 간 통찰 공유, 상충 중재          |
 | **tasks.md 태스크 보드** | Todo / In-Progress / Done 상태 관리                                             | 진행 추적, 감독자 패턴의 동적 할당        |
+| **checkpoint.json**      | 마지막 성공 지점 및 공유 변수 저장                                              | Durable Execution (중단 시 재개)          |
 | **반환 메시지**          | 서브에이전트가 최종 답을 반환                                                   | 짧은 결과, 단발성 조회                    |
 
-**권장 조합:** 파일 기반(산출물) + findings.md(통찰 중개) + tasks.md(진행 추적) 3종을 모두 활용.
+**권장 조합:** 파일 기반(산출물) + findings.md(통찰 중개) + tasks.md(진행 추적) + checkpoint.json(영속성) 4종을 모두 활용.
 
 **파일 기반 전달 규칙:**
 
@@ -262,9 +267,9 @@ cloud-deploy/
 - 파일명 컨벤션: `{phase}_{agent}_{artifact}_v{version}.{ext}` (예: `01_analyst_requirements_v1.md`).
 - 최종 산출물만 사용자 지정 경로에 출력, 중간 파일들은 `_workspace/{plan_name}/`에 보존.
 
-#### 5-2. 에러 핸들링
+#### 5-2. 에러 핸들링 및 자가 치유
 
-오케스트레이터 내에 에러 처리 방침을 포함한다. 핵심 원칙: 1회 재시도 후 재실패 시 해당 결과 없이 진행(보고서에 누락 명시), 상충 데이터는 삭제하지 않고 출처 병기.
+오케스트레이터 내에 에러 처리 방침을 포함한다. 핵심 원칙: **체크포인트 기반 자동 재개**, 최대 3회 재시도 후 미해결 시 태스크를 `Blocked`로 전환하고 `ask_user`로 사용자 개입 요청(임의 Skip 절대 금지), 상충 데이터는 삭제하지 않고 출처 병기.
 
 > 에러 유형별 전략표와 구현 상세는 `references/orchestrator-template.md`의 "에러 핸들링" 참조.
 
@@ -281,6 +286,8 @@ cloud-deploy/
 #### 5-4. GEMINI.md 하네스 포인터 등록
 
 하네스 구성 완료 후, 프로젝트의 `GEMINI.md`에 최소한의 포인터를 등록한다. GEMINI.md는 새 세션마다 로딩되므로, 하네스 존재와 트리거 규칙만 기록하면 오케스트레이터 스킬이 나머지를 처리한다.
+
+> **AGENTS.md 병행 사용:** Claude Code·Codex·Aider 등과 함께 쓰는 프로젝트라면 Agent Rules 이니셔티브 표준인 `AGENTS.md`를 추가로 작성하고, `settings.json`에 `{ "context": { "fileName": ["AGENTS.md", "GEMINI.md"] } }`를 등록하면 두 파일 모두 로딩된다.
 
 **GEMINI.md 템플릿:**
 
@@ -311,8 +318,9 @@ cloud-deploy/
 - "이전 결과 기반으로", "결과 개선"
 
 **2. 오케스트레이터 Phase 0에 컨텍스트 확인 단계 추가:**
-워크플로우 시작 시 기존 산출물 존재 여부를 확인하여 실행 모드를 결정한다.
+워크플로우 시작 시 기존 산출물 및 체크포인트 존재 여부를 확인하여 실행 모드를 결정한다.
 
+- **`checkpoint.json` 존재** → **중단 지점 재개** (실패 지점부터 실행).
 - `_workspace/` 존재 + 사용자가 부분 수정 요청 → **부분 재실행** (해당 에이전트만 재호출).
 - `_workspace/` 존재 + 사용자가 새 입력 제공 → **새 실행** (기존을 `_workspace_{timestamp}/`로 이동 후 보존).
 - `_workspace/` 미존재 → **초기 실행**.
@@ -339,7 +347,7 @@ cloud-deploy/
 #### 6-2. 실행 모드 검증
 
 - 각 에이전트의 입출력 경로(`_workspace/`)가 다음 에이전트의 입력과 매칭되는지 확인.
-- 오케스트레이터가 `findings.md`·`tasks.md`를 실제로 갱신하는 로직을 포함하는지 확인.
+- 오케스트레이터가 `findings.md`·`tasks.md`·`checkpoint.json`을 실제로 갱신하는 로직을 포함하는지 확인.
 - Claude Code 전용 API(`TeamCreate`/`SendMessage`/`TaskCreate`/서브에이전트 `run_in_background`)가 오케스트레이터에 남아있지 않은지 확인.
 
 #### 6-3. 스킬 실행 테스트
@@ -377,7 +385,7 @@ cloud-deploy/
 #### 6-6. 테스트 시나리오 작성
 
 - 오케스트레이터 스킬에 `## 테스트 시나리오` 섹션 추가.
-- 정상 흐름 1개 + 에러 흐름 1개 이상 기술.
+- 정상 흐름 1개 + 에러 흐름 1개 + **재개(Resume) 흐름 1개** 이상 기술.
 
 ---
 
@@ -459,10 +467,10 @@ cloud-deploy/
 
 생성 완료 후 확인:
 
-- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model: "gemini-3.1-pro-preview"`, 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
+- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → Pro, 워커 → Flash 또는 `inherit`), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
 - [ ] `{프로젝트}/.gemini/skills/{name}/SKILL.md` — 스킬 파일들 (SKILL.md + 필요 시 `references/`·`scripts/`·`assets/`).
 - [ ] 오케스트레이터 스킬 1개 (Phase 0 재실행 감지 + 데이터 흐름 + 에러 핸들링 + 테스트 시나리오 포함).
-- [ ] `_workspace/` 표준 경로 정의 — `findings.md`, `tasks.md`, `evals/{timestamp}/grading.json`.
+- [ ] `_workspace/` 표준 경로 정의 — `findings.md`, `tasks.md`, `checkpoint.json`, `evals/{timestamp}/grading.json`.
 - [ ] `{프로젝트}/GEMINI.md` — 하네스 포인터(트리거 규칙 + 변경 이력) 등록.
 - [ ] `.gemini/commands/` — **아무것도 생성하지 않음**.
 - [ ] 기존 에이전트/스킬과 충돌 없음 (트리거 충돌 포함).
@@ -470,7 +478,7 @@ cloud-deploy/
 - [ ] SKILL.md 본문이 500줄 이내, 초과 시 `references/`로 분리.
 - [ ] 테스트 프롬프트 2~3개로 실행 검증 완료.
 - [ ] 트리거 검증(Should-trigger + Should-NOT-trigger 각 8~10개) 완료.
-- [ ] **오케스트레이터 Phase 0에 컨텍스트 확인 단계**(초기/후속/부분 재실행 판별) 존재.
+- [ ] **오케스트레이터 Phase 0에 컨텍스트 및 체크포인트 확인 단계**(초기/후속/부분/재개 판별) 존재.
 - [ ] **GEMINI.md 변경 이력**에 에이전트/스킬 추가·삭제·수정 기록.
 - [ ] Claude Code 전용 API(`TeamCreate`/`SendMessage`/`TaskCreate`/서브에이전트 `run_in_background`) 미사용 확인.
 
@@ -478,7 +486,7 @@ cloud-deploy/
 
 ## 참고
 
-- **6대 아키텍처 패턴 + 에이전트 정의 구조 + 도구 매핑:** `references/agent-design-patterns.md`
+- **7대 아키텍처 패턴 + 에이전트 정의 구조 + 도구 매핑:** `references/agent-design-patterns.md`
 - **오케스트레이터 고도화 템플릿** (Phase 0~5, 데이터 흐름 다이어그램, 에러 핸들링 표, 테스트 시나리오): `references/orchestrator-template.md`
 - **실전 협업 사례** (7개 예시 + 완성형 에이전트 파일): `references/team-examples.md`
 - **스킬 작성 가이드** (작성 패턴, 예시, 데이터 스키마 표준): `references/skill-writing-guide.md`
