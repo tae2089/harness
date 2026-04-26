@@ -9,24 +9,24 @@
 
 ## 예시 인덱스
 
-| # | 패턴 | 도메인 예시 | 에이전트 수 | 핵심 특징 | 파일 |
-|---|------|-----------|------------|----------|------|
-| 1 | Fan-out/Fan-in | 리서치 팀 | 4 | 병렬 조사 후 통합, 데이터 충돌 중재 | [examples/team/01-fan-out-fan-in.md](examples/team/01-fan-out-fan-in.md) |
-| 2 | Producer-Reviewer | 웹툰 제작 | 2 | PASS/FIX/REDO 루프, 에이전트 파일 전문 예시 포함 | [examples/team/02-producer-reviewer.md](examples/team/02-producer-reviewer.md) |
-| 3 | Supervisor | 코드 마이그레이션 | 1+N | 런타임 동적 배치 할당, tasks.md claim 메커니즘 | [examples/team/03-supervisor.md](examples/team/03-supervisor.md) |
-| 4 | Hierarchical | 풀스택 앱 개발 | 5 | 2단계 위임, 팀 리드 중간 조율, 에이전트 파일 전문 예시 포함 | [examples/team/04-hierarchical.md](examples/team/04-hierarchical.md) |
-| 5 | Handoff + Persistence | 시스템 디버깅 | 4 | [NEXT_AGENT] 파싱, 대용량 로그 재개 | [examples/team/05-handoff-persistence.md](examples/team/05-handoff-persistence.md) |
+| #   | 패턴                  | 도메인 예시       | 에이전트 수 | 핵심 특징                                                   | 파일                                                                               |
+| --- | --------------------- | ----------------- | ----------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Fan-out/Fan-in        | 리서치 팀         | 4           | 병렬 조사 후 통합, 데이터 충돌 중재                         | [examples/team/01-fan-out-fan-in.md](examples/team/01-fan-out-fan-in.md)           |
+| 2   | Producer-Reviewer     | 웹툰 제작         | 2           | PASS/FIX/REDO 루프, 에이전트 파일 전문 예시 포함            | [examples/team/02-producer-reviewer.md](examples/team/02-producer-reviewer.md)     |
+| 3   | Supervisor            | 코드 마이그레이션 | 1+N         | 런타임 동적 배치 할당, tasks.md claim 메커니즘              | [examples/team/03-supervisor.md](examples/team/03-supervisor.md)                   |
+| 4   | Hierarchical          | 풀스택 앱 개발    | 5           | 2단계 위임, 팀 리드 중간 조율, 에이전트 파일 전문 예시 포함 | [examples/team/04-hierarchical.md](examples/team/04-hierarchical.md)               |
+| 5   | Handoff + Persistence | 시스템 디버깅     | 4           | [NEXT_AGENT] 파싱, 대용량 로그 재개                         | [examples/team/05-handoff-persistence.md](examples/team/05-handoff-persistence.md) |
 
 ### 패턴 선택 가이드
 
-| 상황 | 권장 패턴 |
-|------|----------|
-| 독립 작업 병렬 수행 후 통합 | Fan-out/Fan-in (예시 1) |
-| 생성 품질을 반복 검수로 높여야 할 때 | Producer-Reviewer (예시 2) |
-| 동종 작업 대량 처리, 진행 상황 실시간 추적 | Supervisor (예시 3) |
-| 도메인 이질적인 팀, 2단계 전문화 위임 필요 | Hierarchical (예시 4) |
-| 원인 불명, 전문가 선택이 분석 결과에 따라 달라질 때 | Handoff (예시 5) |
-| 대용량 데이터 처리 중 중단 재개 필요 | Handoff + Persistence (예시 5) |
+| 상황                                                | 권장 패턴                      |
+| --------------------------------------------------- | ------------------------------ |
+| 독립 작업 병렬 수행 후 통합                         | Fan-out/Fan-in (예시 1)        |
+| 생성 품질을 반복 검수로 높여야 할 때                | Producer-Reviewer (예시 2)     |
+| 동종 작업 대량 처리, 진행 상황 실시간 추적          | Supervisor (예시 3)            |
+| 도메인 이질적인 팀, 2단계 전문화 위임 필요          | Hierarchical (예시 4)          |
+| 원인 불명, 전문가 선택이 분석 결과에 따라 달라질 때 | Handoff (예시 5)               |
+| 대용량 데이터 처리 중 중단 재개 필요                | Handoff + Persistence (예시 5) |
 
 ---
 
@@ -35,7 +35,7 @@
 ### 에이전트 정의 파일
 
 - 경로: `.gemini/agents/{agent-name}.md` (프로젝트) 또는 `~/.gemini/agents/{agent-name}.md` (사용자).
-- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커 → `"gemini-3-flash-preview"` 또는 `"inherit"`), `tools` (반드시 `ask_user`·`activate_skill` 포함).
+- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커 → `"gemini-3-flash-preview"` , `tools` (반드시 `ask_user`·`activate_skill` 포함).
 - 권장 YAML: `temperature`(역할별 0.2~0.7), `max_turns`(5~20).
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Gemini CLI), 에러 핸들링.
 

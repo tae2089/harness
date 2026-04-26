@@ -350,7 +350,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 생성 완료 후 확인:
 
-- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → Pro, 워커 → Flash 또는 `inherit`), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
+- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → gemini-3.1-pro-preview, 워커 → gemini-3-flash-preview), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
 - [ ] `{프로젝트}/.gemini/skills/{name}/SKILL.md` — 스킬 파일들 (SKILL.md + 필요 시 `references/`·`scripts/`·`assets/`).
 - [ ] 오케스트레이터 스킬 1개 (Step 0 재실행 감지 + 데이터 흐름 + 에러 핸들링 + 테스트 시나리오 포함).
 - [ ] `_workspace/` 표준 경로 정의 — `workflow.md`(Stage-Step 구조 선언), `findings.md`, `tasks.md`, `checkpoint.json`, `{plan_name}/`(실행 산출물), `tasks/task_{agent}_{id}.json`(에이전트별 상태 파일), `evals/{timestamp}/grading.json`.
