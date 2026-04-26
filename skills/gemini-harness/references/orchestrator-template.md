@@ -2,22 +2,7 @@
 
 오케스트레이터는 메인 에이전트가 오케스트레이션 로직을 실행하기 위해 사용하는 상위 스킬이다. Gemini CLI 환경은 **서브에이전트 간 직접 통신이 불가능**하므로, 메인 에이전트가 유일한 **Data Broker**로서 `findings.md`·`tasks.md`·`checkpoint.json`을 매개로 팀을 조율한다. 본 템플릿은 Gemini CLI 한 가지 실행 모드(파일 기반 브로커링)만을 다룬다.
 
-> **주의:** Claude Code의 `TeamCreate`, `SendMessage`, `TaskCreate`, `run_in_background` 같은 팀/태스크 전용 API는 Gemini CLI에 존재하지 않는다. 서브에이전트 호출은 **`invoke_agent` 도구**를 사용하며, 병렬 실행이 필요한 경우 도구 호출 시 **`wait_for_previous: false`** 파라미터를 지정하여 구현해야 한다. (단, **셸 명령 수준의 백그라운드 실행**은 `run_shell_command`가 지원하므로, dev server나 데몬 띄우기 용도로 사용 가능하다.)
-
-## 목차
-
-1. [오케스트레이터 기본 구조 (Phase 0~5)](#오케스트레이터-기본-구조-data-broker-강화형)
-2. [데이터 영속성 프로토콜 (Persistence Schema)](#데이터-영속성-프로토콜-persistence-schema)
-3. [분할 작업 파일 프로토콜 (Split Task Schema)](#분할-작업-파일-프로토콜-split-task-schema)
-4. [데이터 브로커링 프로토콜 (Mandatory Schema)](#데이터-브로커링-프로토콜-mandatory-schema)
-5. [데이터 흐름](#데이터-흐름)
-6. [에러 핸들링 및 자가 치유](#에러-핸들링-및-자가-치유)
-7. [테스트 시나리오](#테스트-시나리오)
-8. [description 후속 작업 키워드](#description-작성-시-후속-작업-키워드-필수)
-9. [작성 및 실행 원칙](#작성-및-실행-원칙)
-10. [Stage·Phase 기반 오케스트레이터](#stagephase-기반-오케스트레이터-단일복합-공통)
-
----
+> **주의:** 서브에이전트 호출은 `invoke_agent` 사용. 병렬 실행: `wait_for_previous: false`. 셸 백그라운드(dev server 등): `run_shell_command`. Claude Code와의 API 차이 상세(`TeamCreate`·`SendMessage`·`TaskCreate` 부재 이유): `references/agent-design-patterns.md` § "실행 모드: 오케스트레이션" 참조.
 
 ## 오케스트레이터 기본 구조 (Data Broker 강화형)
 
@@ -29,156 +14,282 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 # {Domain} Orchestrator
 
-## 가상 팀 구성 및 전문 도구 세트
+## 가상 팀 구성
 
-> **모든 에이전트 공통 필수 도구:** `ask_user`, `activate_skill` (이하 표에서는 생략하여 역할별 차별 도구만 표기).
-> **오케스트레이터/팀장 에이전트 전용:** `invoke_agent` — 다른 에이전트를 호출하지 않는 워커 서브에이전트(`@analyst`, `@coder`, `@reviewer` 등)에는 부여하지 않는다.
+> **공통 필수 도구 (표 생략):** `ask_user`, `activate_skill`
+> **오케스트레이터 전용:** `invoke_agent` — 워커 서브에이전트에는 부여하지 않는다.
 
-| agent     | 에이전트 타입        | 역할   | 스킬    | 출력          |
+| agent     | 타입                 | 역할   | 스킬    | 출력          |
 | --------- | -------------------- | ------ | ------- | ------------- |
 | {agent-1} | {커스텀 또는 빌트인} | {역할} | {skill} | {output-file} |
 | {agent-2} | {커스텀 또는 빌트인} | {역할} | {skill} | {output-file} |
-| ...       |                      |        |         |               |
 
-## 워크플로우 및 데이터 브로커링 로직
+## 워크플로우
 
-### Phase 0: 컨텍스트 및 체크포인트 확인 (Durable Execution)
+### Step 0: 컨텍스트 확인 (Durable Execution)
 
-기존 산출물 및 영속 상태를 확인하여 실행 모드를 결정한다:
+`_workspace/checkpoint.json`의 상태에 따라 진입 경로를 결정한다. **표를 위에서 아래로 순서대로 평가**하여 처음 일치하는 행의 액션을 실행한다.
 
-1. `_workspace/` 디렉토리 및 `_workspace/checkpoint.json` 존재 여부 확인
-2. 실행 모드 결정:
-   - **`checkpoint.json` 존재 + `status: "completed"`** → 이전 실행 완료 상태. 사용자 요청이 부분 수정이면 **부분 재실행**, 새 입력이면 **새 실행**으로 분기. Resume 처리 금지.
-   - **`checkpoint.json` 존재 + `status: "in_progress"`** → **중단 지점 재개(Resume)**. 마지막 성공 지점 이후부터 작업을 이어간다.
-   - **`_workspace/` 미존재** → **초기 실행**. Phase 1로 진행
-   - **`_workspace/` 존재 + 사용자가 부분 수정 요청** → **부분 재실행**. `checkpoint.json`의 `current_stage`·`current_phase` 유지한 채 해당 에이전트만 재호출. 기존 산출물 중 수정 대상만 덮어쓴다.
-   - **`_workspace/` 존재 + 새 입력 제공** → **새 실행**. 기존 `_workspace/`를 `_workspace_{YYYYMMDD_HHMMSS}/`로 이동한 뒤 Phase 1 진행
-3. 부분 재실행/재개 시: 이전 산출물 경로를 에이전트 프롬프트에 포함하여, 에이전트가 기존 결과를 읽고 피드백을 반영하도록 지시 (멱등성 보장)
-4. **`_workspace/workflow.md` 읽기**: Stage-Phase 구조 파악.
-   - **초기 실행 시**: `workflow.md` 미존재 → Phase 1에서 생성 후 참조. 이 단계는 스킵.
-   - **재개 모드 시**: `checkpoint.json`의 `current_stage`·`current_phase`로 정확한 진입 지점 복원.
+| `_workspace/` | `ckpt.status` | 추가 조건 | 액션 |
+|---|---|---|---|
+| 없음 | — | — | GOTO Step 1 |
+| 있음 | `in_progress` 또는 `partial` | — | workflow.md 읽기 → GOTO Step 2 ¹ |
+| 있음 | `blocked` | 응답 = "계속/재개/해결" | 차단 task 파일 삭제 ² → checkpoint `{status:"in_progress"}` 갱신 → GOTO Step 2 |
+| 있음 | `blocked` | 응답 = "처음부터/초기화" | `_workspace/` → `_workspace_{NOW()}/` 백업 → GOTO Step 1 |
+| 있음 | `blocked` | 기타 (첫 진입 포함) | 차단 사유 보고 ³ → `ask_user` → HALT |
+| 있음 | `completed` | 요청 = "부분 수정" | RESUME_FROM 결정 ⁴ → checkpoint `{status:"partial", current_stage, current_step}` 갱신 → GOTO Step 2 |
+| 있음 | `completed` | 기타 | `_workspace/` → `_workspace_{YYYYMMDD_HHMMSS}/` 백업 → GOTO Step 1 |
 
-### Phase 1: 준비 및 태스크 보드 초기화
+¹ max_turns 소진 후 자동 재개 경로. 수동 개입 불필요.
 
-1. 사용자 입력 분석 — {무엇을 파악하는지}
-2. 작업 디렉토리에 `_workspace/` 생성
-   - **초기 실행**: 새 `_workspace/` 생성
-   - **새 실행**: 기존 `_workspace/`를 `_workspace_{YYYYMMDD_HHMMSS}/`로 이동한 직후 새 `_workspace/` 재생성
-3. **`_workspace/workflow.md` 생성** (초기 실행·새 실행 시): `references/templates/workflow.template.md` 기반으로 Stage-Phase 구조를 선언. 단순 작업은 Stage·Phase 각 1개(`main`), 다단계 작업은 2개 이상.
-4. 입력 데이터를 `_workspace/{plan_name}/`에 저장
-5. `findings.md` 초기화 (패턴별 필요 섹션만 빈 상태로 생성):
-   - 필수: `# [공유 변수/경로]`
-   - Fan-out/Fan-in: `# [핵심 통찰]`, `# [핵심 키워드]`, `# [데이터 충돌]`
-   - Producer-Reviewer: `# [변경 요청]`
-   - Pipeline·Hierarchical: `# [다음 단계 지침]`
-   - Supervisor·Handoff: `# [데이터 충돌]`
-6. `tasks.md` 초기화 및 `checkpoint.json` 생성:
-   - `current_stage`: 첫 번째 stage명
-   - `current_phase`: 해당 stage의 첫 번째 phase명
-   - `active_pattern`: `workflow.md`의 해당 phase 블록에서 읽어온 패턴값 (미선언 시 `"pipeline"` 기본값)
-   - `status`: `"in_progress"`, `last_updated`: 현재 타임스탬프
+² 삭제 대상: `_workspace/tasks/task_{ckpt.blocked_agent}_*.json` (`ckpt.blocked_agent` 기준 특정). 다른 step의 Blocked 파일은 건드리지 않는다.
 
-### Phase 2: 서브에이전트 호출 및 동적 제어 (`invoke_agent` 활용)
+³ 차단 사유 보고 형식:
+```
+이전 실행 Blocked. 사유: {ckpt.blocked_reason} | 에이전트: {ckpt.blocked_agent}
+차단 원인을 해결한 뒤 재개해 주세요. ("계속" / "처음부터")
+```
+> `ask_user`는 다음 턴에서 이 표를 재평가한다.
 
-메인 에이전트는 각 단계마다 **반드시 시스템 도구인 `invoke_agent`를 사용**하여 다음 브로커링 루프를 수행한다.
+⁴ **부분 수정 RESUME_FROM 결정:**
 
-1. **사전 브리핑:** 호출 전 `findings.md`를 읽어 현재까지의 발견 사항을 파악한다.
-2. **에이전트 호출:** `invoke_agent(agent_name="...", prompt="...")` 도구를 사용한다.
-   - **출입 통제 선행 확인 (필수):** 호출 전 `workflow.md`의 `current_stage`/`current_phase` 블록에서 `활성 에이전트` 목록을 확인한다. 목록에 없는 에이전트는 호출하지 않는다. 상세 로직은 하단 "Phase별 활성 에이전트 출입 통제 로직" 참조.
-   - **고급 컨텍스트 주입:** 프롬프트 내에 `@{_workspace/findings.md}` 구문을 직접 포함하여 서브에이전트가 작업 중인 최신 통찰을 즉시 참조하게 할 수 있다.
-     예: `invoke_agent(agent_name="analyst", prompt="@{_workspace/findings.md}의 요구사항을 기반으로 심층분석을 수행하고, 결과를 @{_workspace/{plan_name}/01_analysis.md}에 기록하라.")`
-   - **원자적 상태 보고 지시:** 병렬 호출 시 에이전트가 `tasks.md`를 직접 수정하지 않고, `_workspace/tasks/task_{agent}_{id}.json`에 결과를 기록하도록 프롬프트에 명시한다.
-3. **병렬/순차 제어 (`wait_for_previous`):**
-   - **병렬 (Fan-out):** 의존성이 없는 에이전트 호출 시 `wait_for_previous: false`로 설정하여 단일 턴 내 동시 실행을 유도한다.
-   - **순차 (Pipeline):** 이전 결과가 반드시 필요하면 `wait_for_previous: true`로 설정한다.
+| 요청 유형 | RESUME_FROM |
+|---|---|
+| "에이전트 X 프롬프트/산출물 수정" | `{stage: ckpt.current_stage, agent: X}` |
+| "스킬 Y 수정" | `{skill: Y}` (해당 에이전트들만 재호출) |
+| "workflow.md / 종료 조건 수정" | `{stage: ckpt.current_stage, step: ckpt.current_step}` |
+| 범위 불명확 | `ask_user("수정 범위 확인: 어떤 에이전트·스킬·파일?")` → RETURN |
 
-   **병렬 + 순차 혼합 예시 (Fan-out → 통합):**
+---
 
-   ```
-   # 1단계: 병렬 호출 (단일 턴 내 동시 실행)
-   invoke_agent(agent_name="researcher-market", wait_for_previous=false,
-     prompt="시장 트렌드를 조사해 _workspace/{plan_name}/mkt.md에 기록하라.")
+### Step 1: 초기화
 
-   invoke_agent(agent_name="researcher-tech", wait_for_previous=false,
-     prompt="기술 타당성을 조사해 _workspace/{plan_name}/tech.md에 기록하라.")
+1. `user_input`에서 `{plan_name}` 파싱. 없으면 `ask_user("작업 이름을 지정해주세요.")` → RETURN.
+2. 디렉터리 생성: `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`.
+3. `workflow.md` 작성 — 패턴에 따라 타이밍이 다르다:
 
-   # 2단계: 순차 호출 (위 두 에이전트 완료 후 실행)
-   invoke_agent(agent_name="strategist", wait_for_previous=true,
-     prompt="_workspace/{plan_name}/mkt.md와 tech.md를 모두 읽고
-             findings.md [데이터 충돌]을 해소한 뒤 최종 전략을 수립하라.")
-   ```
+   | 패턴 | 작성 방식 |
+   |------|-----------|
+   | `pipeline` / `fan_out_fan_in` / `producer_reviewer` / `handoff` / `expert_pool` | 사용자 요청 기반 즉시 작성 |
+   | `supervisor` / `hierarchical` | Discovery Agent 먼저 호출 → 산출물 기반 작성 |
 
-   > **주의:** `wait_for_previous: false`로 호출된 에이전트들은 **단일 응답 턴 내에서** 병렬 실행된다. 이후 `wait_for_previous: true` 호출은 앞선 모든 병렬 에이전트 완료를 기다린 후 실행된다.
+4. `findings.md` 초기화 — 패턴별 필요 섹션만 포함:
 
-4. **결과 파싱 및 동적 핸드오프 (Handoff):**
-   - 에이전트 응답에서 `[NEXT_AGENT: @expert-name]` 구문이 발견되면, 메인 에이전트는 계획된 다음 단계 대신 추천된 전문가를 우선 호출하는 동적 위임을 수행할 수 있다.
-5. **Thread-safe 상태 통합 (Aggregation):**
-   - 병렬 작업 완료 후, 메인 에이전트는 `list_directory`로 `_workspace/tasks/`를 스캔하여 모든 개별 작업 파일을 수집한다.
-   - 수집된 데이터를 바탕으로 `tasks.md`와 `checkpoint.json`을 **단일 턴 내에서 한 번에 갱신(Atomic Update)**하여 쓰기 충돌을 방지한다.
-6. **결과 요약 브로커링:** 서브에이전트의 전체 로그를 모두 분석하기보다, `invoke_agent`가 반환한 **"요약된 실행 결과"**를 우선적으로 활용하여 `findings.md`를 갱신함으로써 메인 에이전트의 컨텍스트 윈도우를 효율적으로 관리한다.
-   - **자문 스타일 처리:** 에이전트가 자문(Consultative) 모드로 쓰인 경우, 결과 파일이 없을 수 있다. 이 때는 반환된 "의견"이나 "체크리스트"를 `findings.md`의 [핵심 통찰]에 즉시 최신화한다.
-7. **상태 영속화 (Checkpoint Update):** 매 에이전트 완료 시 `checkpoint.json`의 `tasks_snapshot.current`(진행 중 태스크 ID)와 `last_updated`(타임스탬프)를 즉시 갱신한다. `current_phase` 갱신은 Phase 실행 루프(종료 조건 충족 시)가 담당하므로 여기서 중복 갱신하지 않는다.
-8. **태스크 보드 갱신:** 매 에이전트 완료 시 `tasks.md`의 상태를 `Todo → In-Progress → Done`으로 전환한다.
+   | 패턴 | 섹션 |
+   |------|------|
+   | 전 패턴 공통 | `[공유 변수/경로]` |
+   | fan_out / fan_out_fan_in | + `[핵심 통찰]`, `[핵심 키워드]`, `[데이터 충돌]` |
+   | producer_reviewer | + `[변경 요청]` |
+   | pipeline / hierarchical | + `[다음 단계 지침]` |
+   | supervisor / handoff | + `[데이터 충돌]` |
+   | expert_pool | + `[라우팅 근거]` (형식: `"- {에이전트}: {이유} (매칭 키워드: {키워드})"`) |
 
-### Phase 3: 교차 검증 및 데이터 정합성 해결 (Feedback Loop 강화)
-
-- **상충 중개:** Analyst와 Coder의 산출물이 상충하면, 오케스트레이터가 `findings.md`의 [데이터 충돌] 섹션에 모순점을 명시하고 Reviewer에게 최종 판정을 요청한다.
-- **증분 QA & Fix Loop:** 전체 완성 후가 아니라, 각 모듈(생산자+소비자)이 완성되는 즉시 Reviewer를 호출해 피드백 루프를 짧게 유지한다.
-  - **원자적 결과 보고:** Reviewer는 자신의 검증 결과를 `_workspace/tasks/task_{agent}_{id}.json`에 기록하여 오케스트레이터의 통합 프로세스를 따른다.
-  - **피드백 루프 로직:** Reviewer가 산출물을 반려하면, 오케스트레이터는 반려 사유가 담긴 `_workspace/{plan_name}/03_review.md`를 생산자(@coder 등)의 프롬프트에 주입하여 재작성을 지시한다.
-  - **산출물 버전 관리:** 기존 산출물을 단순히 덮어쓰는 대신, `_workspace/{plan_name}/02_code_v1.md`처럼 버전을 명시하거나 `_workspace/history/`에 백업하여 변경 이력을 추적 가능하게 관리한다.
-  - **재시도 제한 및 무관용 원칙:** 이 루프는 최대 2회 재시도(총 3회)까지만 수행한다. **3회 후에도 통과 불가 시 오케스트레이터는 해당 태스크를 절대 임의로 통과(Skip)시켜서는 안 된다.** 반드시 태스크를 `Blocked`로 변경하고, `ask_user`를 통해 사용자에게 즉시 작업을 중단하고 개입할 것을 요청한다.
-- **상태 업데이트:** 매 단계 완료 후 `tasks.md`의 상태와 `Evidence`, 산출물 경로를 갱신한다. (오케스트레이터가 분할 파일을 통합하여 수행)
-
-### Phase 4: 통합 및 최종 산출
-
-1. 모든 에이전트의 산출물을 `read_file`로 수집한다.
-2. `findings.md`의 [공유 변수/경로]를 기준으로 충돌을 최종 해소한다.
-3. 최종 산출물을 `_workspace/{plan_name}/final_{output}.md`에 생성한다.
-
-### Phase 5: 아카이브 및 정리 (Findings & Tasks 관리 고도화)
-
-1. **상세 기록 보존:** 작업 중 `_workspace/findings.md` 및 `_workspace/tasks.md`에 기록된 모든 상세 내용을 `_workspace/{plan_name}/findings.md` 및 `_workspace/{plan_name}/tasks.md`로 복사하여 플랜별 이력과 태스크 상태를 보존한다.
-2. **중앙 findings 요약:** 메인 `_workspace/findings.md`의 내용을 비우고, 해당 플랜의 **[최종 결과 요약]**과 상세 내용이 담긴 **[아카이브 경로]**(`_workspace/{plan_name}/findings.md`)만 남긴다.
-3. **체크리스트 완료:** 모든 작업 성공 시 `checkpoint.json`을 다음 최종 상태로 갱신한다:
-   - `status`: `"completed"`
-   - 마지막 stage → `stage_history`에 `completed_at` 타임스탬프 포함하여 추가
-   - 마지막 phase → `phase_history`에 `completed_at` 타임스탬프 포함하여 추가
-   - `current_stage`·`current_phase`: `"done"` (재개 시 완료 상태임을 식별)
-   - `last_updated`: 현재 타임스탬프
-4. **보존:** `_workspace/` 전체 구조를 유지하여 사후 검증 및 부분 재실행 시 참조 가능하게 한다.
-5. **보고:** 사용자에게 결과 요약과 아카이브된 상세 통찰 및 태스크 경로를 보고한다.
-
-## 데이터 영속성 프로토콜 (Persistence Schema)
-
-오케스트레이터는 실행 중단에 대비해 다음 스키마를 준수하는 `_workspace/checkpoint.json`을 관리한다.
+5. `tasks.md` 초기화: `| ID | 에이전트 | 작업 내용 | 상태 | Evidence | 산출물 경로 |`
+6. `checkpoint.json` 생성:
 
 ```json
 {
-  "execution_id": "YYYYMMDD_HHMMSS",
-  "plan_name": "my-plan-run-001",
+  "execution_id":   "YYYYMMDD_HHMMSS",
+  "plan_name":      "{plan_name}",
+  "status":         "in_progress",
+  "current_stage":  "{workflow.stages[0].name}",
+  "current_step":  "{workflow.stages[0].steps[0].name}",
+  "active_pattern": "{first_step.pattern}",
+  "stage_history":  [],
+  "step_history":  [],
+  "stage_artifacts": {},
+  "handoff_chain":  [],
+  "tasks_snapshot": { "done": [], "current": null },
+  "shared_variables": {},
+  "last_updated":   "NOW()"
+}
+```
+
+> **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: main`, `#### Step 1: main`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
+> **파싱 예시:** `### Stage 1: main` → `current_stage = "main"` / `#### Step 1: research` → `current_step = "research"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
+
+7. **workflow.md 사이클 검증 (작성 직후 필수):**
+
+   | 검사 항목 | 방법 | 실패 시 액션 |
+   |-----------|------|-------------|
+   | Step 내 순환 참조 | 각 Stage 내 Step의 `다음 step` 링크를 순서대로 추적 — 이미 방문한 Step 이름이 재등장 시 → 순환 | `ask_user("workflow.md에 순환 참조 발견: {Stage} → {cycle_path}. 수정 후 재시도하세요.")` → HALT |
+   | Stage 내 `done` 미도달 | Step 체인 끝이 `done`이 아닌 경우 | 동일 |
+   | 미정의 Step 참조 | `다음 step` 값이 같은 Stage 내에 존재하지 않는 Step 이름인 경우 | 동일 |
+
+   > 이 검사는 Step 2 루프 진입 전 단 1회 실행. resume 경로(Step 0 → Step 2)에서는 생략 가능(workflow.md가 이미 검증된 상태).
+
+8. GOTO Step 2.
+
+---
+
+### Step 2: Step 실행 루프
+
+**매 사이클 시작 시:**
+
+1. `workflow.md`, `checkpoint.json`, `findings.md` 읽기.
+2. `workflow[ckpt.current_stage][ckpt.current_step]` → `step_block` 추출. 없으면 findings.md 오류 기록 → `ask_user` → HALT.
+3. `step_block`에서 `active_agents`, `pattern`, `exit_cond`, `max_iterations` 추출.
+4. **심볼릭 플레이스홀더 해결:** `active_agents`에 `@선택된_전문가` 등 심볼릭 이름 포함 시:
+   - `checkpoint.shared_variables.selected_expert` 읽기 → 실제 에이전트명으로 치환.
+   - 필드 미존재 → `ask_user("expert_pool Step이 아직 실행되지 않았거나 selected_expert 미기록. 어떤 에이전트를 호출할까요?")` → RETURN.
+   > 이 치환은 런타임에만 적용. workflow.md 파일 자체는 수정하지 않는다.
+5. **Pre-blocked 검사 (에이전트 호출 전 필수):** `_workspace/tasks/task_*.json` 중 `status=="Blocked" AND agent IN active_agents` → 발견 시 checkpoint `blocked` 갱신 → `ask_user` → RETURN. 에이전트 호출 절대 금지.
+6. 출입 통제: `active_agents` 목록 외 에이전트 호출 금지.
+7. **findings.md 컨텍스트 주입:** 에이전트 호출 프롬프트에 `findings.md` 전체를 포함한다.
+   ```
+   invoke_agent(@{name}, prompt="""
+   {task_description}
+
+   ## 공유 컨텍스트 (findings.md)
+   @{_workspace/findings.md}
+   """)
+   ```
+   > findings.md가 비어 있어도 헤더는 포함할 것 — 에이전트가 섹션 구조를 인식한다.
+
+**패턴별 에이전트 호출:**
+
+| 패턴 | 호출 방식 | 완료 후 기록 |
+|------|-----------|-------------|
+| `pipeline` / `hierarchical` | 순차 (`wait_for_previous=true`), 에이전트마다 즉시 기록 | findings.md, tasks.md, checkpoint.json |
+| `fan_out` / `fan_out_fan_in` | 병렬 (`wait_for_previous=false`) → 전체 완료 후 `COLLECT ALL task_*.json` → ATOMIC_WRITE ⁷ | tasks/task_{agent}_{id}.json, tasks.md, findings.md, checkpoint.json |
+| `producer_reviewer` | — | GOTO Step 3 |
+| `expert_pool` | CLASSIFY → 단일 에이전트 순차 ⁵ | findings.md[라우팅 근거], task 파일, tasks.md |
+| `supervisor` | 배치별 병렬 → 배치마다 ATOMIC_WRITE | tasks.md, checkpoint.json |
+| `handoff` | 순차, `[NEXT_AGENT]` 키워드 파싱 ⁶ | task 파일 (수신자 또는 첫 에이전트), findings.md, tasks.md |
+
+⁵ **expert_pool 상세:**
+1. CLASSIFY(user_request, active_agents): 키워드 vs description 비교 → 최적 에이전트 또는 AMBIGUOUS 반환.
+2. AMBIGUOUS → `ask_user("전문가 목록: {active_agents}")` → RETURN.
+3. findings.md[라우팅 근거] 기록 → checkpoint `shared_variables.selected_expert` 갱신 → 에이전트 호출 → task 파일 기록.
+
+⁶ **handoff 상세:**
+1. `active_agents[0]` 호출.
+2. 응답에 `[NEXT_AGENT: @{name}]` 포함 시: `handle_handoff({name})` 순환 감지 → next_prompt 구성 → `{name}` 호출 → `task_{name}_{id}.json` 기록.
+3. `[NEXT_AGENT]` 미포함 시: `task_{active_agents[0]}_{id}.json` 기록 (단독 완료).
+
+⁷ **fan_out / fan_out_fan_in 에이전트 책임:** 병렬 에이전트 각자가 작업 완료 직후 `_workspace/tasks/task_{agent}_{id}.json`을 직접 작성한다(메인 에이전트가 대신 작성하지 않음). 메인 에이전트는 전체 완료 후 GLOB으로 파일을 수집하여 ATOMIC_WRITE로 통합한다.
+
+**종료 조건 검사 (`exit_cond` 유형별):**
+
+| Type | 종료 조건 형식 | 검사 방법 |
+|------|----------------|-----------|
+| A | `task_*.json` 모두 `status=done` | GLOB → status 필드 전수 확인 |
+| B | 특정 파일 존재 | `EXISTS(경로)` |
+| C | JSON 필드값 (예: `verdict=PASS`) | READ 파일 → 필드 비교 |
+| D | `iterations ≥ N` | `step_history[current_step].iterations` 비교 |
+
+**종료 조건 충족 시 — Step/Stage 전환:**
+
+1. checkpoint.json `step_history`에 완료 기록.
+2. `step_block.다음_step` 누락(필드 없음 또는 null/빈 값) → findings.md 오류 기록 → `ask_user` → HALT.
+3. `다음_step != "done"` → checkpoint 갱신(`current_step`, `active_pattern`, `handoff_chain: []`) → Step 2 루프 상단 재진입 (다음 Step로 진입).
+4. `다음_step == "done"` → GOTO Stage 전환 게이트. (상세: `references/stage-step-guide.md` § "Stage 전환 프로토콜")
+
+**종료 조건 미충족 시:**
+
+1. `iterations < max_iterations` → `step_history[current_step].iterations++` → Step 2 루프 상단 재진입 (같은 Step 재실행).
+2. 소진 → findings.md에 `"Step {current_step}: max_iterations 소진, 종료 조건 미충족"` 기록 → blocked_protocol. (상세: `references/orchestrator-procedures.md`)
+
+---
+
+### Step 3: Fix Loop (producer_reviewer 전용)
+
+```
+retries ← 0
+
+WHILE retries < 3:
+    CALL invoke_agent(@producer, prompt="@{_workspace/findings.md} 참조. {생성 지시}.")
+    WRITE "_workspace/{plan_name}/{output}_v{retries+1}.md" ← producer 결과
+
+    CALL invoke_agent(@reviewer, prompt="@{위 파일} 검증. 결과를 task_{reviewer}_{id}.json에 기록.")
+    READ "_workspace/tasks/task_{reviewer}_{id}.json" → review
+
+    IF review.status == "Done":  // PASS
+        ATOMIC_WRITE { tasks.md ← PASS evidence, checkpoint.json ← tasks_snapshot 갱신 }
+        GOTO Step 4
+
+    ELSE:  // FAIL
+        retries += 1
+        IF retries >= 3:
+            UPDATE tasks.md ← task "Blocked"
+            CALL ask_user("3회 후에도 검증 실패. 개입 요청.")
+            RETURN
+        WRITE findings.md["변경 요청"] ← review.evidence  // 피드백 주입 후 재시도
+```
+
+---
+
+### Step 4: 통합 및 최종 산출
+
+1. `GLOB "_workspace/tasks/task_*.json"` → `status=="Done"` 파일만 필터 → 각 파일의 `artifact_path` 추출 → `artifacts` 리스트 구성.
+2. findings.md의 `[데이터 충돌]` 섹션 확인 → 충돌 있으면 reviewer 에이전트 호출하여 해소. 미해소 시 `ask_user` → RETURN.
+3. `_workspace/{plan_name}/final_{output}.md` ← artifacts 병합(MERGE) 후 저장.
+   > MERGE: 각 에이전트 산출물을 역할 순서대로 읽어 섹션별로 연결. 포맷은 도메인에 따라 결정 (마크다운: `## {에이전트명}\n{내용}` 연결, JSON: 키 병합, 코드: 파일 경로 목록).
+
+---
+
+### Step 5: 아카이브 및 보고
+
+1. `findings.md`, `tasks.md` → `_workspace/{plan_name}/` 복사 (상세 이력 보존).
+2. `findings.md` 요약본으로 교체: `[최종 결과 요약]` + `[아카이브 경로]` 섹션만 유지.
+3. `checkpoint.json` 갱신: `status:"completed"`, `current_stage/step:"done"`, `stage_history`에 완료 기록.
+4. 사용자 보고:
+
+```
+완료: {plan_name}
+산출물:    _workspace/{plan_name}/final_{output}.md
+상세 이력: _workspace/{plan_name}/findings.md
+tasks:     _workspace/{plan_name}/tasks.md
+```
+
+## 데이터 영속성 프로토콜 (checkpoint.json 스키마)
+
+> **정본(canonical spec).** `stage-step-guide.md` 등 다른 파일은 이 스키마를 참조한다.
+
+### 필드 설명
+
+| 필드 | 타입 | 설명 | 필수 |
+|------|------|------|------|
+| `execution_id` | string | `YYYYMMDD_HHMMSS` 형식 실행 ID. | **필수** |
+| `plan_name` | string | 실행 계획 식별자. | **필수** |
+| `status` | string | `"in_progress"` \| `"completed"` \| `"partial"` \| `"blocked"`. | **필수** |
+| `last_updated` | string | ISO 8601 타임스탬프. | **필수** |
+| `current_stage` | string | 현재 활성 stage. 단순 워크플로우는 `"main"`. | **필수** |
+| `current_step` | string | 현재 활성 step. 단순 워크플로우는 `"main"`. | **필수** |
+| `active_pattern` | string | 현 step 실행 패턴 (예: `"pipeline"`). | 권장 |
+| `stage_history` | array | 완료 stage 기록. `started_at` + `completed_at` 포함. | 다단계 |
+| `step_history` | array | 완료 step 기록. `iterations` 포함. | 다단계 |
+| `stage_artifacts` | object | stage별 주요 산출물 경로 매핑. | 선택 |
+| `tasks_snapshot` | object | 태스크 완료 현황 스냅샷. | 선택 |
+| `shared_variables` | object | 여러 에이전트가 공유하는 런타임 변수. | 선택 |
+| `handoff_chain` | array | Handoff 패턴 사용 시 현 step 내 호출된 에이전트 순서. 순환 감지용. Step 전환 시 초기화. | Handoff 패턴 |
+| `blocked_agent` | string | Blocked 발생 시 차단된 에이전트명. `status:"blocked"` 전환 시에만 기록. | Blocked 시 |
+| `blocked_reason` | string | Blocked 발생 원인. 재개 시 사용자에게 표시. | Blocked 시 |
+
+### 스키마 예시
+
+```json
+{
+  "execution_id": "20260425_103000",
+  "plan_name": "blog-writing-run-001",
   "status": "in_progress",
   "last_updated": "2026-04-25T10:30:00Z",
 
-  "current_stage": "design",
-  "current_phase": "architecture",
-  "active_pattern": "pipeline",
+  "current_stage": "refine",
+  "current_step": "draft-review",
+  "active_pattern": "producer_reviewer",
 
   "stage_history": [
-    { "stage": "gather", "completed_at": "2026-04-25T09:00:00Z" }
+    { "stage": "gather", "started_at": "2026-04-25T09:00:00Z", "completed_at": "2026-04-25T10:00:00Z" }
   ],
-  "phase_history": [
-    { "stage": "design", "phase": "requirements", "completed_at": "2026-04-25T09:30:00Z", "iterations": 1 }
+  "step_history": [
+    { "stage": "gather", "step": "research", "completed_at": "2026-04-25T10:00:00Z", "iterations": 1 }
   ],
 
-  "tasks_snapshot": {
-    "done": ["T1", "T2"],
-    "current": "T3"
-  },
-  "shared_variables": {
-    "api_endpoint": "https://api.example.com",
-    "main_artifact": "_workspace/plan/02_code.md"
-  }
+  "stage_artifacts": { "gather": "_workspace/research/", "refine": "_workspace/draft.md" },
+  "tasks_snapshot": { "done": ["T1", "T2"], "current": "T3" },
+  "shared_variables": { "main_artifact": "_workspace/plan/02_code.md" },
+  "handoff_chain": ["@incident-triage", "@db-fixer"]
 }
 ```
 ````
@@ -191,264 +302,16 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 {
   "agent": "@coder",
   "task_id": "T2",
-  "status": "Done", // "Done" | "Blocked"
-  "retries": 0, // 재시도 누적 횟수 (0~2). 2 초과 시(총 3회) Blocked 전환
+  "status": "Done",
+  "retries": 0,
   "evidence": "Reviewer PASS report: _workspace/plan/03_review.md",
   "artifact_path": "_workspace/plan/02_code.md"
 }
 ```
 
-## 데이터 브로커링 프로토콜 (Mandatory Schema)
+> `status`: `"Done"` | `"Blocked"`. `retries ≥ 2` 시 Blocked 전환 (0·1 허용 = 총 3회).
 
-오케스트레이터는 데이터 일관성과 컨텍스트 효율을 위해 다음 스키마와 경로 규칙을 엄격히 준수해야 한다.
+## 절차 & 원칙
 
-- **작업 경로 규칙:** 모든 실무 에이전트의 산출물은 `_workspace/{plan_name}/` 하위에 저장한다.
-- **Findings (중개 데이터):** `_workspace/findings.md`
-  - **업데이트 원칙:** 정보를 단순 누적하지 마라. 새로운 통찰이 발견되면 기존 내용을 **요약 및 최신화(Overwrite)**하여 컨텍스트 윈도우 낭비를 방지한다.
-  - **작업 중 필드 (상세 기록, 패턴별 필요 섹션만 사용):**
-    - `# [핵심 통찰]`: 리서치·분석 결과 핵심 요약. (Fan-out/Fan-in)
-    - `# [핵심 키워드]`: 에이전트 프롬프트 주입용 공통 키워드. (Fan-out/Fan-in)
-    - `# [공유 변수/경로]`: 에이전트들이 공통으로 참조해야 할 파일 경로·API 계약·Persistence 재개 지점. (전 패턴)
-    - `# [데이터 충돌]`: 에이전트 간 산출물 불일치 내역 (에이전트명, 충돌 지점, 해결 상태). (Fan-out/Fan-in, Supervisor, Handoff)
-    - `# [변경 요청]`: 재작업 지시 내용. (Producer-Reviewer)
-    - `# [다음 단계 지침]`: 다음 에이전트가 중점적으로 봐야 할 가이드. (Pipeline, Hierarchical)
-  - **작업 완료 후 (아카이브 & 요약):**
-    - **상세 이력 보존:** 위 모든 내용을 `_workspace/{plan_name}/findings.md` 및 `tasks.md`로 이동/복사.
-    - **중앙 요약:** `_workspace/findings.md`를 초기화한 후, 해당 플랜의 **[최종 결과 요약]**과 **[상세 이력 경로]**만 남겨 후속 작업 시 컨텍스트 무게를 최소화한다.
-
-- **Tasks (상태 데이터):** `_workspace/tasks.md`
-  - `| ID | 에이전트 | 작업 내용 | 상태 | Evidence (증거) | 산출물 경로 |` (Markdown Table 형식 필수)
-  - 상태값: `Todo`, `In-Progress`, `Done`, `Blocked`
-  - **Done 전환 규칙:** 반드시 해당 태스크의 성공을 입증하는 **증거**(Reviewer의 PASS 리포트 경로, 테스트 통과 로그 등)가 `Evidence` 컬럼에 기록되어야만 `Done`으로 변경할 수 있다. 추측성 완료는 절대 금지한다.
-
-## 데이터 흐름
-
-```
-
-                     ┌──────────────────────────┐
-                     │   메인 에이전트 (Broker)   │
-                     │  findings.md / tasks.md  │
-                     └────┬────────┬────────┬───┘
-                          │        │        │
-                 read_file│   호출 │        │read_file (Feedback)
-                          ▼        ▼        ▼
-                      @analyst  @coder  @reviewer
-                          │        │        │
-                          ▼        ▼        ▼
-                  {plan_name}/  {plan_name}/  {plan_name}/
-                  01_analysis.md 02_code.md   03_review.md
-                          │        │        │
-                          └────────┴───┬────┘
-                                       │ (Re-entry Loop)
-                                       ▼
-                              _workspace/{plan_name}/final_{output}.md
-
-```
-
-핵심: 에이전트는 서로 파일조차 직접 읽지 않고, **오직 메인 에이전트만이 파일을 읽어 다음 에이전트 프롬프트에 요약을 주입**한다. 반려 시 Review 리포트를 생산자에게 다시 주입하는 것이 루프의 핵심이다.
-
-## 에러 핸들링 및 자가 치유
-
-| 상황                    | 오케스트레이터 대응 로직                                                                                                                                                 |
-| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 에이전트 1명 실패       | `findings.md`에 에러 원인 기록 → **최대 2회 재시도(총 3회)** (매회 접근법 변경). 3회 후에도 실패 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. **임의 Skip·Done 처리 절대 금지.** |
-| 에이전트 과반 실패      | `tasks.md`에 중단 지점 저장 → 진행 여부를 `ask_user`로 확인 후 결정.                                                                                                     |
-| 타임아웃                | **Phase 0 자동 감지**: `checkpoint.json`의 `current_stage`·`current_phase`로 정확한 진입 지점 복원 후 즉시 재개.                                                         |
-| `max_turns` 소진        | 산출물 파일 존재·완성도 확인. 미완성이면 **작업 범위를 축소**하거나 여러 서브태스크로 분할해 재호출. 재시도 후에도 반복 소진 시 `Blocked` 전환 후 `ask_user`로 사용자 개입 요청. 에이전트 `max_turns` 값 상향도 함께 제안. |
-| 데이터 모순 발견        | `findings.md` [데이터 충돌] 섹션에 기록 → 관련 에이전트들에게 모순점 피드백과 함께 재호출. 미해소 시 Reviewer 판정.                                                      |
-| 에이전트 간 데이터 충돌 | 출처를 명시하여 병기. 임의 삭제 금지. Reviewer가 최종 선택.                                                                                                              |
-| 작업 상태 지연          | `tasks.md`의 `In-Progress` 항목을 점검 → `Blocked`로 전환 후 원인을 `findings.md`에 기록.                                                                                |
-| 루프 한계 도달 (3회)    | `findings.md`에 최종 반려 사유 기록 → **태스크를 Blocked로 변경 후 반드시 ask_user로 사람의 개입을 요청 (임의 Skip 금지).**                                              |
-| Phase Blocked 발생      | 해당 phase의 모든 태스크 `Blocked` 처리 → **다음 phase·stage 진입 절대 금지.** `checkpoint.json` 갱신 없이 중단. `ask_user`로 사용자 개입 요청 후 해결 시까지 대기.      |
-
-## 테스트 시나리오
-
-오케스트레이터는 반드시 **정상 흐름 1개 + 에러 흐름 1개 + 재개(Resume) 흐름 1개** 이상을 스킬 본문에 기술한다.
-
-> **명칭 구분:** 여기서 "오케스트레이터 Phase 0~5"는 **오케스트레이터 스킬 자체의 내부 실행 단계**다(컨텍스트 확인·초기화·에이전트 호출·QA·통합·보고). `workflow.md`의 Stage·Phase 계층과 별개 개념이다.
-
-### 정상 흐름
-
-1. 사용자가 `{입력}`을 제공.
-2. 오케스트레이터 Phase 0에서 `_workspace/` 미존재 확인 → 초기 실행 모드 선택.
-3. 오케스트레이터 Phase 1에서 `workflow.md`·`tasks.md`·`findings.md` 초기화.
-   - `workflow.md`: Stage 1(`main`) / Phase 1(`main`) / 활성 에이전트 목록 기록.
-   - `checkpoint.json`: `current_stage: "main"`, `current_phase: "main"`, `active_pattern: {첫 phase 패턴}`, `status: "in_progress"` 초기화.
-4. 오케스트레이터 Phase 2에서 [Phase 실행 루프] — workflow.md의 현재 Phase 에이전트 호출.
-   - @analyst → @coder 순차 실행 (병렬 가능한 구간은 배치 호출).
-5. 오케스트레이터 Phase 3에서 @reviewer 호출 → `findings.md` 충돌 없음 확인.
-6. 오케스트레이터 Phase 4에서 `_workspace/{plan_name}/final_{output}.md` 생성.
-7. 오케스트레이터 Phase 5에서 사용자에게 요약 보고.
-8. **예상 결과:** `_workspace/{plan_name}/final_{output}.md` 존재, `tasks.md` 전 항목 `Done`.
-
-### 재개 흐름 (Persistence Test)
-
-1. @analyst 호출 완료, @coder 호출 중 네트워크 장애로 세션 종료.
-2. 사용자 재호출 → 오케스트레이터 Phase 0에서 `checkpoint.json` 발견.
-3. `checkpoint.json`의 `current_stage`·`current_phase` 복원 → 해당 phase 진입 지점 확인.
-4. @analyst 산출물 존재 확인 → @coder 단계부터 즉시 재개.
-5. **예상 결과:** @analyst 작업 스킵, @coder 이후 작업만 완료됨.
-
-### 에러 흐름 (Fix Loop)
-
-1. 오케스트레이터 Phase 3에서 @reviewer가 @coder의 결과물을 반려 (보안 취약점 발견).
-2. 오케스트레이터가 `findings.md` [변경 요청]에 반려 사유 기록.
-3. 오케스트레이터가 @coder를 재호출하며 @reviewer의 리포트를 주입.
-4. @coder가 취약점을 수정하여 신규 산출물 생성.
-5. @reviewer 재검증 통과 → 오케스트레이터 Phase 4로 진행.
-6. 최종 보고에 "에러 복구: @reviewer 반려 후 @coder 수정을 거쳐 최종 통과" 명시.
-
-## description 작성 시 후속 작업 키워드 (필수)
-
-오케스트레이터 description은 **초기 실행 키워드만으로는 부족하다**. 다음 후속 작업 표현을 반드시 포함하지 않으면 첫 실행 후 하네스가 사실상 죽은 코드가 된다.
-
-- 재실행 / 다시 실행 / 업데이트 / 수정 / 보완
-- "{도메인}의 {부분}만 다시", "이전 결과 기반으로", "결과 개선"
-- 도메인 특화 일상 표현 (예: 런치 전략 하네스라면 "런치", "홍보", "트렌딩" 등)
-
-`description`에 후속 키워드가 누락되면 Gemini CLI의 트리거 라우터가 두 번째 호출부터 이 스킬을 선택하지 않는다.
-
-## [추후 개선 포인트]
-
-본 오케스트레이터 템플릿의 향후 고도화 방향.
-
-1.  **Advanced Task Management:** `tasks.md`에 `priority` 및 `depends_on` 메타데이터 필드를 도입하여 더 복잡한 비순환 방향 그래프(DAG) 형태의 태스크 조율 지원.
-2.  **Automated Fallback Agent:** 태스크가 `Blocked`로 전환될 때(`Blocked` 상태 자체는 구현됨), 오케스트레이터가 사전에 정의된 '대체 에이전트'를 **자동으로** 할당하는 자가 치유 시도. 현재는 `ask_user`로 사람에게 위임.
-3.  **Standardized Naming Convention:** 모든 하네스에서 에이전트 명칭을 `@{domain}-{role}` (예: `@web-coder`, `@api-analyst`) 형식으로 엄격히 강제하여 멀티 하네스 환경에서의 충돌 방지.
-
-## 작성 및 실행 원칙
-
-1. **중개자 역할 강조:** 메인 에이전트는 단순히 도구를 호출하는 것이 아니라, 결과를 분석하여 **다음 에이전트의 입력(Context)을 고도화**한다.
-2. **영속성 우선:** 모든 주요 상태 변경 직후에 파일을 갱신하여 예기치 못한 종료에 대비한다.
-3. **원자적 상태 통합:** 병렬 에이전트가 생성한 분할 작업 파일들을 오케스트레이터가 수집하여 통합함으로써 쓰기 충돌을 원천 차단한다.
-4. **엄격한 도구 격리:** 에이전트 호출 시 정의된 `tools` 범위를 벗어나는 작업을 시키지 않는다.
-5. **가시성 확보:** 모든 중간 과정은 `findings.md`와 `tasks.md`를 통해 파일로 기록되어야 한다.
-6. **Phase 의존성 명시:** workflow.md의 Phase 순서와 종료 조건으로 의존성을 선언한다. Phase N 완료 → Phase N+1 진입 구조가 workflow.md에 명확히 표현되어야 한다.
-7. **현실적 에러 가정:** "모든 것이 성공한다"고 가정하지 않는다. 에러 핸들링 표 전 항목을 커버해야 한다. Phase Blocked 시 Stage 전환 금지 규칙 포함.
-8. **테스트 시나리오 필수:** 정상 1 + 에러 1 이상을 스킬 본문에 포함. 없으면 Phase 5 검증 통과 불가.
-
-## 실제 오케스트레이터 참고
-
-팬아웃/팬인 패턴의 기본 흐름:
-Phase 0(컨텍스트 확인) → Phase 1(태스크 보드 초기화) → Phase 2(에이전트 배치 호출) → Phase 3(Reviewer 증분 검증) → Phase 4(파일 기반 통합) → Phase 5(보존·보고).
-에이전트 분업 예시는 `references/team-examples.md`를 참조.
-
----
-
-## Stage·Phase 기반 오케스트레이터 (단일·복합 공통)
-
-> **연결 구조:** 위 "오케스트레이터 기본 구조"의 **Phase 2(서브에이전트 호출)**가 아래 [Phase 실행 루프]를 수행하며, Stage·Phase 전환 프로토콜을 따른다. Phase 0-5는 오케스트레이터 내부 실행 단계이고, 아래 Stage·Phase는 `workflow.md`에 선언된 작업 계층이다. 두 개념을 혼동하지 않는다.
-
-모든 하네스 오케스트레이터가 따르는 통합 로직. 계층 구조는 **Stage → Phase → Agent** 3단계다.
-
-- **단순 워크플로우:** Stage 1개(`main`) + Phase 1개(`main`)
-- **다단계 워크플로우:** Stage 2개 이상, 또는 한 Stage에 Phase 2개 이상
-
-### 매 사이클 시작 시 workflow.md + checkpoint.json 읽기
-
-```markdown
-## Phase 0-W: workflow.md 상태 확인 (모든 하네스 필수)
-
-1. `_workspace/workflow.md` 읽기.
-2. `checkpoint.json`의 `current_stage`, `current_phase` 읽기
-   (없으면 첫 번째 stage의 첫 번째 phase로 초기화).
-3. `workflow.md`에서 `current_stage` → `current_phase` 블록 로드.
-4. 해당 phase의 패턴과 활성 에이전트 목록 확인.
-```
-
-### Phase 실행 루프 (매 사이클, 자동 전환)
-
-```markdown
-## Phase 실행 루프
-
-종료 조건 술어를 파싱하여 검증한다.
-
-- `task_*.json 모두 status=done` → glob 스캔 후 모든 파일의 status 필드 확인.
-- `파일 존재` → 해당 경로에 파일 있는지 확인.
-- `JSON 필드값` → 파일 읽고 해당 필드값 추출·비교.
-- `iterations ≥ N` → checkpoint.json의 phase_history에서 해당 phase의 iterations 확인.
-
-결과:
-- 미충족 → 현재 phase 패턴에 따라 활성 에이전트 호출 후 다음 사이클 대기.
-- **Blocked 발생** → 루프 즉시 중단. 다음 phase·stage 진입 금지. checkpoint.json 갱신 없이 ask_user 호출.
-- 충족 + 다음 phase 있음 → checkpoint.json 갱신:
-  - `current_phase` → 다음 phase명
-  - `active_pattern` → `workflow.md`에서 다음 phase 블록의 패턴값 (미선언 시 `"pipeline"`)
-  - `phase_history`에 완료된 phase 기록 (completed_at 타임스탬프)
-  → 같은 턴 내 다음 phase 즉시 진입 허용.
-- 충족 + 다음 phase = done → Stage 종료 조건 검증 진행.
-```
-
-### 루프 패턴 iterations 카운팅
-
-```markdown
-## iterations 카운팅 (producer_reviewer, supervisor 등 루프 패턴 전용)
-
-매 에이전트 호출 사이클 완료 후:
-1. `phase_history`에서 `current_stage/current_phase`의 `iterations` 읽기 (없으면 0).
-2. iterations + 1 → `checkpoint.json` 즉시 갱신.
-3. `iterations ≥ max_iterations` (workflow.md 해당 phase의 값)
-   → 종료 조건 충족 여부와 무관하게 phase 강제 종료 (done 처리).
-4. `iterations < max_iterations` + 종료 조건 미충족 → 루프 에이전트 재호출.
-```
-
-**phase_history 갱신 형식:**
-
-```json
-{
-  "stage": "refine",
-  "phase": "draft-review",
-  "iterations": 2,
-  "completed_at": null
-}
-```
-
-> `iterations`: 매 사이클 후 증가. `completed_at`: 완료 시 타임스탬프 기록, 진행 중은 `null`.
-
-### Stage 전환 시 사용자 승인 게이트
-
-```markdown
-## Stage 전환 보고 (사용자 승인 게이트)
-
-Stage {현재 stage} 완료:
-  Phase {phase-1}: {종료 조건} ✓
-  Phase {phase-2}: {종료 조건} ✓
-
-checkpoint.json 업데이트:
-  current_stage → {다음 stage}
-  current_phase → {다음 stage의 첫 번째 phase명}
-
-다음 Stage: {다음 stage}
-  Phase 목록: [{phase-1}, {phase-2}]
-  첫 Phase 활성 에이전트: {에이전트 목록}
-  첫 Phase 종료 조건: {조건}
-
-진행할까요? [Y/N]
-```
-
-**[금지]** 사용자 승인 전 다음 stage 에이전트를 같은 응답 턴에서 호출하지 않는다.
-
-**사용자 승인 게이트 자동 스킵 (없음인 경우):**
-workflow.md 현재 stage 블록의 `사용자 승인 게이트: 없음`이면 사용자 승인 요청 생략.
-다음 stage 진입 또는 전체 워크플로우 완료 처리. 보고 형식:
-
-```
-Stage {현재 stage} 완료 → {다음 stage 이름 / "워크플로우 완료"} 자동 진행.
-완료된 Phase: [{phase-1}, {phase-2}]
-최종 산출물: {artifact paths}
-```
-
-### Phase별 활성 에이전트 출입 통제 로직
-
-```markdown
-## invoke_agent 호출 전 출입 통제 체크
-
-Gemini CLI agent frontmatter는 커스텀 필드를 지원하지 않으므로,
-출입 통제는 workflow.md의 phase 블록 `활성 에이전트` 목록으로 수행한다.
-
-1. workflow.md에서 current_stage → current_phase 블록 찾기.
-2. 해당 phase의 `활성 에이전트` 목록 읽기.
-3. 호출하려는 에이전트가 목록에 있으면 → invoke_agent 호출.
-4. 목록에 없으면 → 호출 보류, 필요 시 사용자에게 보고:
-   "@{agent}는 현재 phase({current_stage}/{current_phase})의 활성 에이전트가 아닙니다."
-```
+> 에러 핸들링(`handle_error` / `blocked_protocol` / `handle_handoff`), 테스트 시나리오, description 키워드, 작성 원칙, Stage·Step 참조:
+> **`references/orchestrator-procedures.md`** 참조.
