@@ -71,6 +71,19 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 **workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 작업(Work, deliverable)**, **Step ≡ Task = 작업을 풀기 위한 한 단위**(1 Step = 1 Task = 1 패턴). 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 상세: `references/stage-step-guide.md`.
 
+> **[MANDATORY] workflow.md 스키마 강제 — 누락 시 Zero-Tolerance Failure.** 오케스트레이터 스킬을 작성할 때 절대 평면 "Step 1~N" 나열로 도피하지 말 것. 모든 Step 블록은 아래 6개 필드를 **빠짐없이** 포함해야 한다.
+>
+> | 필수 필드 | 형식 | 자연어 금지 |
+> |---|---|---|
+> | `패턴` | 7대 패턴 중 1개 (`pipeline`·`fan_out_fan_in` 등) | "순차 진행" 같은 임의 표기 금지 |
+> | `활성 에이전트` | `[@name1, @name2]` 형식 | 에이전트명 누락·자유 텍스트 금지 |
+> | `종료 조건` | **검증 가능 술어** (파일 존재·`task_*.json` status=done·JSON 필드값·iteration ≥ N) | "QA 승인", "충분히 모였다", "완료되면" 같은 LLM 자의 해석 표현 **차단** |
+> | `다음 step` | 같은 Stage 내 step 이름 또는 `done` | 누락 금지 |
+> | `최대 반복 횟수` | 정수 (비루프=1, 루프 ≤3) | 누락 금지 |
+> | Stage `사용자 승인 게이트` | `필요` 또는 `없음 (마지막 stage)` | 명시 누락 금지 |
+>
+> 자연어 종료 조건이 작성되면 **즉시 거부**하고 검증 가능 술어로 재작성. drift 처리: `references/expansion-matrix.md`의 "drift 처리 가이드" 참조.
+
 **상호작용 스타일 선택 (Interaction Styles - 필수):** 구조적 패턴 외에도, 에이전트와 대화하는 스타일을 정의한다.
 
 - **위임 (Delegation):** 에이전트가 직접 산출물 파일을 생성/수정하도록 지시 (`invoke_agent`).

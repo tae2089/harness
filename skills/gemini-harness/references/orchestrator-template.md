@@ -108,7 +108,20 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 > **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: main`, `#### Step 1: main`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
 > **파싱 예시:** `### Stage 1: main` → `current_stage = "main"` / `#### Step 1: research` → `current_step = "research"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
 
-7. **workflow.md 사이클 검증 (작성 직후 필수):**
+7. **workflow.md 스키마 검증 (작성 직후 필수, 사이클 검증보다 먼저 실행):**
+
+   각 Stage·Step 블록에서 **필수 필드 누락**을 모두 검사한다. 한 건이라도 누락 시 즉시 차단.
+
+   | 검사 항목 | 방법 | 실패 시 액션 |
+   |-----------|------|-------------|
+   | Stage 필드: `종료 조건`, `다음 stage`, `사용자 승인 게이트` | 정규식/파서로 헤더 아래 필드 존재 확인 | `ask_user("workflow.md Stage {name} 필수 필드 누락: {missing_fields}. 보강 후 재시도.")` → HALT |
+   | Step 필드: `패턴`, `활성 에이전트`, `종료 조건`, `다음 step`, `최대 반복 횟수` | 동일 | 동일 |
+   | `패턴` 값 = 7대 중 1 (`pipeline`·`fan_out_fan_in`·`expert_pool`·`producer_reviewer`·`supervisor`·`hierarchical`·`handoff`) | enum 검사 | `ask_user("패턴 값 위반: {value}. 7대 중 선택.")` → HALT |
+   | `활성 에이전트` 형식 = `[@name, ...]` | 정규식 `\[(@\w[\w-]*\s*,?\s*)+\]` | `ask_user("활성 에이전트 형식 위반.")` → HALT |
+   | **`종료 조건` 검증 가능 술어** | 키워드 화이트리스트: `task_*.json`·`status=done`·`존재`·`verdict=`·`score ≥`·`iterations ≥`. 화이트리스트 미매칭 + LLM 자의 해석 키워드(`승인`·`충분`·`완료되면`·`만족`·`적절히`) 발견 시 위반 | `ask_user("Step {name}의 종료 조건이 자연어다('{value}'). 검증 가능 술어로 재작성: 파일 존재·JSON 필드값·iteration ≥ N.")` → HALT |
+   | 사용자 승인 게이트 누락 | Stage 블록에 명시 안 됨 | 동일 |
+
+8. **workflow.md 사이클 검증 (스키마 검증 통과 후):**
 
    | 검사 항목 | 방법 | 실패 시 액션 |
    |-----------|------|-------------|
@@ -116,9 +129,9 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | Stage 내 `done` 미도달 | Step 체인 끝이 `done`이 아닌 경우 | 동일 |
    | 미정의 Step 참조 | `다음 step` 값이 같은 Stage 내에 존재하지 않는 Step 이름인 경우 | 동일 |
 
-   > 이 검사는 Step 2 루프 진입 전 단 1회 실행. resume 경로(Step 0 → Step 2)에서는 생략 가능(workflow.md가 이미 검증된 상태).
+   > 두 검사는 Step 2 루프 진입 전 단 1회 실행. resume 경로(Step 0 → Step 2)에서는 생략 가능(workflow.md가 이미 검증된 상태).
 
-8. GOTO Step 2.
+9. GOTO Step 2.
 
 ---
 
