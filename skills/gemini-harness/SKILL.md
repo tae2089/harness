@@ -208,23 +208,55 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 #### 5-1. 데이터 전달 프로토콜
 
-오케스트레이터 내에 에이전트 간 데이터 전달 방식을 명시한다.
+오케스트레이터 내에 에이전트 간 데이터 전달 방식을 명시한다. **Gemini CLI는 서브에이전트 간 직접 통신 API가 없으므로**, 모든 에이전트 간 정보 흐름은 아래 5종 파일 매개로 메인 에이전트가 중개한다.
 
-| 전략                     | 방식                                                                            | 적합한 경우                               |
-| ------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------- |
-| **파일 기반 (기본)**     | `_workspace/{plan_name}/`에 산출물 기록                                         | 대용량 데이터, 구조화된 산출물, 감사 추적 |
-| **findings.md 브로커링** | 메인이 산출물을 읽어 요약을 `findings.md`에 기록, 다음 에이전트 프롬프트에 주입 | 에이전트 간 통찰 공유, 상충 중재          |
-| **tasks.md 태스크 보드** | Todo / In-Progress / Done 상태 관리                                             | 진행 추적, 감독자 패턴의 동적 할당        |
-| **checkpoint.json**      | 마지막 성공 지점 및 공유 변수 저장                                              | Durable Execution (중단 시 재개)          |
-| **반환 메시지**          | 서브에이전트가 최종 답을 반환                                                   | 짧은 결과, 단발성 조회                    |
+| 전략                          | 방식                                                                            | 적합한 경우                               |
+| ----------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| **파일 기반 산출물 (기본)**   | `_workspace/{plan_name}/`에 워커가 직접 산출물 기록                             | 대용량 데이터, 구조화된 산출물, 감사 추적 |
+| **findings.md 브로커링**      | 메인이 산출물을 읽어 요약을 `findings.md`에 기록, 다음 에이전트 프롬프트에 주입 | 에이전트 간 통찰 공유, 상충 중재          |
+| **task_\*.json (워커 보고)**  | 워커가 `_workspace/tasks/task_{agent}_{id}.json`을 **자기 것만 작성** → 메인이 GLOB 수집 후 tasks.md 원자적 통합 | **병렬 에이전트 race condition 회피** (워커는 tasks.md 직접 쓰기 금지) |
+| **tasks.md 태스크 보드**      | 메인 단독 갱신. Todo / In-Progress / Done / Blocked 상태                        | 진행 추적, 감독자 패턴의 동적 할당        |
+| **checkpoint.json**           | 메인 단독 갱신. 마지막 성공 지점·공유 변수·current_stage·current_step           | Durable Execution (중단 시 재개)          |
+| **반환 메시지**               | 서브에이전트가 최종 답을 반환                                                   | 짧은 결과, 단발성 조회                    |
 
-**권장 조합:** 파일 기반(산출물) + findings.md(통찰 중개) + tasks.md(진행 추적) + checkpoint.json(영속성) 4종을 모두 활용.
+**권장 조합:** 파일 기반 산출물 + findings.md(통찰 중개) + task_\*.json(워커 보고) + tasks.md(진행 보드) + checkpoint.json(영속성) 5종 모두 활용.
 
-**파일 기반 전달 규칙:**
+##### 산출물 관리 계층 (읽기/쓰기 권한 매트릭스)
 
-- 작업 디렉토리 하위에 `_workspace/{plan_name}/` 폴더를 만들어 중간 산출물 저장.
-- 파일명 컨벤션: `{step}_{agent}_{artifact}_v{version}.{ext}` (예: `01_analyst_requirements_v1.md`).
-- 최종 산출물만 사용자 지정 경로에 출력, 중간 파일들은 `_workspace/{plan_name}/`에 보존.
+```
+_workspace/
+├── workflow.md             [WRITE: 메인(Step 1만)] [READ: 메인(매 사이클)]
+├── findings.md             [WRITE: 메인 단독]      [READ: 모든 에이전트(프롬프트 주입)]
+├── tasks.md                [WRITE: 메인 단독]      [READ: 메인]
+├── checkpoint.json         [WRITE: 메인 단독]      [READ: 메인]
+├── tasks/
+│   └── task_{agent}_{id}.json   [WRITE: 워커 자기 것만] [READ: 메인(GLOB 수집)]
+└── {plan_name}/
+    └── {step}_{agent}_*.md      [WRITE: 워커]           [READ: 메인 → findings 요약]
+```
+
+**핵심 규칙:**
+- **워커는 `tasks.md`·`findings.md`·`checkpoint.json` 절대 직접 수정 금지** — 병렬 호출 시 race condition으로 데이터 손실.
+- **메인은 `task_*.json` 직접 작성 금지** — 워커가 자기 작업 완료 후 자기 파일만 작성.
+- **메인의 통합 흐름:** `GLOB("_workspace/tasks/task_*.json")` → 모두 읽기 → tasks.md ATOMIC_WRITE 갱신 + findings.md 요약 갱신 + checkpoint.json 갱신.
+
+##### task_*.json 스키마 (워커 → 메인 보고 표준)
+
+```json
+{
+  "id":         "task_{agent}_{seq}",
+  "agent":      "@agent-name",
+  "stage":      "{current_stage}",
+  "step":       "{current_step}",
+  "status":     "Todo | In-Progress | Done | Blocked",
+  "evidence":   "검증 가능 술어 (예: '_workspace/sso/research.md 존재', 'go test ./... PASS')",
+  "artifact":   "_workspace/{plan_name}/{filename}",
+  "blocked_reason": "(status=Blocked일 때만) 차단 사유",
+  "timestamp":  "YYYYMMDD_HHMMSS"
+}
+```
+
+**파일명 컨벤션 (산출물용):** `{step}_{agent}_{artifact}_v{version}.{ext}` (예: `01_analyst_requirements_v1.md`). 최종 산출물만 사용자 지정 경로에 출력, 중간 파일들은 `_workspace/{plan_name}/`에 보존.
 
 #### 5-2. 에러 핸들링 및 자가 치유
 
