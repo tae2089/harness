@@ -1,6 +1,6 @@
 # 예시 1: 병렬 수집 후 검토 루프 (블로그 포스트 작성)
 
-패턴 조합: `gather` Stage = fan_out_fan_in → `write` Stage = producer_reviewer
+작업(Stage) 분해: `gather`(자료 수집 작업) → `write`(작성 작업). Step(=Task) 패턴: gather/research = fan_out_fan_in, write/draft-review = producer_reviewer.
 
 ## workflow.md
 

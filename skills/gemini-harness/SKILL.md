@@ -69,7 +69,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 - **계층적 위임 (Hierarchical):** 팀장 에이전트가 하위 에이전트에 재귀 위임(2단계 이내 권장).
 - **핸드오프 (Handoff):** 에이전트가 작업 완료 후 다음 전문가를 직접 추천하여 위임.
 
-**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 상세: `references/stage-step-guide.md`.
+**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 작업(Work, deliverable)**, **Step ≡ Task = 작업을 풀기 위한 한 단위**(1 Step = 1 Task = 1 패턴). 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 상세: `references/stage-step-guide.md`.
 
 **상호작용 스타일 선택 (Interaction Styles - 필수):** 구조적 패턴 외에도, 에이전트와 대화하는 스타일을 정의한다.
 
@@ -379,5 +379,5 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 - **QA 에이전트 가이드** (통합 정합성 검증, 경계면 버그 패턴, 셸 백그라운드 활용, 실제 버그 7건 사례): `references/qa-agent-guide.md`
 - **하네스 진화 프로토콜** (피드백 반영, 변경 이력, 운영/유지보수 워크플로우): `references/evolution-protocol.md`
 - **기존 확장 Phase 선택 매트릭스** (변경 유형별 실행 Phase 결정): `references/expansion-matrix.md`
-- **Stage-Step 워크플로우 가이드** (workflow.md 명세, checkpoint.json 스키마, Step·Stage 전환 프로토콜): `references/stage-step-guide.md` / 예시 3종: `references/examples/step/01~03-*.md` / 테스트 시나리오 6종: `references/examples/step/test-scenarios.md`
+- **Stage-Step 워크플로우 가이드** (workflow.md 명세, checkpoint.json 스키마, Step·Stage 전환 프로토콜): `references/stage-step-guide.md` / 예시 5종: `references/examples/step/01~05-*.md` / 테스트 시나리오 6종: `references/examples/step/test-scenarios.md`
 - **workflow.md 작성 템플릿** (복사 후 변수 치환): `references/templates/workflow.template.md`

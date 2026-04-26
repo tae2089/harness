@@ -1,6 +1,6 @@
 # 예시 3: 순차 설계 후 병렬 검증 (아키텍처 설계)
 
-패턴 조합: `design` Stage = pipeline(다단계 Step) → `validate` Stage = fan_out_fan_in
+작업(Stage) 분해: `design`(설계 작업, 3 task) → `validate`(검증 작업, 1 task). Step(=Task) 패턴: design Stage 3 Step 모두 pipeline, validate/parallel-review=fan_out_fan_in.
 
 ## workflow.md
 

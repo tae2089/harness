@@ -1,6 +1,6 @@
 # 예시 2: 분류 → 전문가 분석 → 검토 (이슈 트리아지)
 
-패턴 조합: `triage` Stage = expert_pool + pipeline → `review` Stage = producer_reviewer
+작업(Stage) 분해: `triage`(분류·분석 작업) → `review`(검토 작업). Step(=Task) 패턴: triage/classification=expert_pool, triage/analysis=pipeline, review/report=producer_reviewer.
 
 ## workflow.md
 

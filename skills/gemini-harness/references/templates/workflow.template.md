@@ -1,10 +1,11 @@
 <!-- 참고 패턴 (선택): fan_out_fan_in, pipeline 등 사용된 패턴 나열. 실행에 영향 없음. -->
 <!-- 예: gather=fan_out_fan_in, refine=producer_reviewer                              -->
-<!-- Stage는 선형이며 스킵 불가. 불필요한 stage는 이 파일에서 아예 제거할 것.         -->
+<!-- Stage(작업/Work)는 선형이며 스킵 불가. 불필요한 stage는 이 파일에서 아예 제거할 것. -->
+<!-- Step ≡ Task: 1 Step = 1 Task = 1 패턴. Stage 작업을 푸는 task 단위.              -->
 
 ## Stage 정의
 
-<!-- 계층 구조 상세: references/stage-step-guide.md -->
+<!-- 계층 구조 상세: references/stage-step-guide.md (Stage=Work, Step≡Task) -->
 
 ### Stage 1: {{STAGE_1_NAME}}
 <!-- 단순이면 "main", 다단계이면 의미 있는 이름 (예: "gather", "design") -->
@@ -16,7 +17,7 @@
   <!-- 마지막 stage이거나 단순 워크플로우면 "없음". 중간 stage면 "필요". -->
 
 #### Step 1: {{PHASE_1_NAME}}
-<!-- 단순이면 "main". 다단계이면 의미 있는 이름 (예: "research", "requirements") -->
+<!-- Step ≡ Task. 단순이면 "main". 다단계이면 의미 있는 task 이름 (예: "research", "requirements") -->
 
 - 패턴: {{PHASE_1_PATTERN}}
   <!-- 7대 기본 패턴 중 하나: pipeline | fan_out_fan_in | expert_pool |
