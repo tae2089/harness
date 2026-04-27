@@ -136,11 +136,13 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 **공식 Gemini CLI 서브에이전트 포맷을 준수하여 `{프로젝트}/.gemini/agents/{name}.md` 파일로 생성한다.** Agent 도구 프롬프트에 역할을 인라인으로 넣는 것은 금지한다(재사용성·협업 프로토콜 보장을 위해).
 
+**에이전트 파일 생성 방법:** Step 1.3에서 동기화된 `_workspace/_schemas/agent-worker.template.md` (또는 `agent-orchestrator.template.md`)를 `read_file`로 읽어 변수 치환 후 `.gemini/agents/{name}.md`로 `write_file`. 모델 ID는 반드시 `_workspace/_schemas/models.md`에서 확인 후 사용.
+
 1. **YAML Frontmatter 필수 필드:**
    - `name`: slug 형태의 고유 이름.
    - `description`: pushy하게 작성. 트리거 상황·후속 작업 키워드 포함.
    - `kind: local`
-   - `model`: 역할에 따라 선택. 오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커(Coder·Analyst·Reviewer·Operator) → `"gemini-3-flash-preview"`을 사용한다.
+   - `model`: **`_workspace/_schemas/models.md` 확인 후 역할에 맞는 ID 사용.** 워커 → flash 티어, 오케스트레이터·Architect → pro 티어. 임의 추측 금지 — 잘못된 ID는 런타임 에러 발생.
    - `tools`: **제한된 목록** (`ask_user`·`activate_skill`은 모든 에이전트 필수 포함; `invoke_agent`는 오케스트레이터·Supervisor·Hierarchical 팀장(Mid-level) 허용 — 일반 워커 에이전트에 부여 금지).
 
 2. **선택 필드(역할에 따라 권장):**
@@ -423,7 +425,7 @@ _workspace/
 
 생성 완료 후 확인:
 
-- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → gemini-3.1-pro-preview, 워커 → gemini-3-flash-preview), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
+- [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. `_workspace/_schemas/agent-worker.template.md`(또는 orchestrator) 변수 치환으로 생성. `model` ID는 `_workspace/_schemas/models.md` 확인 필수 — 임의 추측 금지.
 - [ ] `{프로젝트}/.gemini/skills/{name}/SKILL.md` — 스킬 파일들 (SKILL.md + 필요 시 `references/`·`scripts/`·`assets/`).
 - [ ] **신규 오케스트레이터 스킬 `references/schemas/` 5종 번들 필수** — `task.schema.json`·`checkpoint.schema.json`·`workflow.template.md`·`findings.template.md`·`tasks.template.md`. SoT(`gemini-harness/references/schemas/`)에서 그대로 복사. 런타임 Step 1.3가 `references/schemas/{file}`을 `read_file`로 읽음 — 누락 시 즉시 실패. (gemini-harness는 메타 스킬·런타임 활성화 안 됨.)
 - [ ] 오케스트레이터 스킬 1개 (Step 0 재실행 감지 + 데이터 흐름 + 에러 핸들링 + 테스트 시나리오 포함).

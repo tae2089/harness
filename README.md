@@ -45,7 +45,10 @@ harness/
             ├── qa-agent-guide.md                 # QA 에이전트 가이드
             ├── evolution-protocol.md             # 하네스 진화/운영 프로토콜
             ├── expansion-matrix.md               # 기존 확장 Phase 선택 매트릭스
-            ├── schemas/                          # 런타임 스키마(SoT)
+            ├── schemas/                          # 런타임 스키마 + 에이전트 템플릿 (SoT)
+            │   ├── models.md                     # ⚠️ 모델 ID 정본 — 여기만 갱신
+            │   ├── agent-worker.template.md      # 워커 에이전트 생성 기준
+            │   ├── agent-orchestrator.template.md # 오케스트레이터 스킬 생성 기준
             │   ├── task.schema.json
             │   ├── checkpoint.schema.json
             │   ├── workflow.template.md
@@ -138,6 +141,8 @@ harness/
 - `references/qa-agent-guide.md` — QA 에이전트 통합 정합성 검증
 - `references/evolution-protocol.md` — 하네스 진화, 운영/유지보수 워크플로우
 - `references/expansion-matrix.md` — 기존 확장 Phase 선택 매트릭스
+- `references/schemas/models.md` — ⚠️ 모델 ID 정본 (`gemini models list`로 확인 후 갱신)
+- `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — 에이전트 생성 기준 템플릿
 - `references/schemas/` — 런타임 스키마 SoT (task·checkpoint·workflow·findings·tasks 템플릿)
 - `references/examples/full-bundle/sso-style.md` — 전체 산출물 패키지 정본 예시
 - `references/examples/team/` · `references/examples/step/` — 패턴별·구조별 상세 예제

@@ -75,8 +75,11 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | `references/schemas/workflow.template.md` | `_workspace/_schemas/workflow.template.md` |
    | `references/schemas/findings.template.md` | `_workspace/_schemas/findings.template.md` |
    | `references/schemas/tasks.template.md` | `_workspace/_schemas/tasks.template.md` |
+   | `references/schemas/models.md` | `_workspace/_schemas/models.md` |
+   | `references/schemas/agent-worker.template.md` | `_workspace/_schemas/agent-worker.template.md` |
+   | `references/schemas/agent-orchestrator.template.md` | `_workspace/_schemas/agent-orchestrator.template.md` |
 
-   > `README.md`는 메인테이너 문서 — 워크스페이스에 복사하지 않는다.
+   > `README.md`·`models.md`·에이전트 템플릿은 에이전트 정의 생성 시 참조용 — 워크스페이스 사본은 생성 기준점으로 활용. `models.md`는 모델 ID SoT이므로 반드시 동기화.
    > **`run_shell_command("cp ...")` 금지** — 런타임 워킹 디렉터리(사용자 프로젝트 루트)에서 스킬 reference 경로는 셸로 도달 불가. 반드시 에이전트 도구 `read_file` + `write_file` 사용.
 
    **운영 규칙:**
