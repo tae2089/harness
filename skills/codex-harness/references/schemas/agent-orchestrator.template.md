@@ -29,7 +29,7 @@ description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 
 | --------------- | ---- | ------ |
 | {{AGENT_TABLE}} |
 
-> 오케스트레이터 모델: `gpt-5.2-thinking` (설계·추론 담당). 모델 ID 확인: `references/schemas/models.md`
+> 오케스트레이터 모델: `gpt-5.5` (설계·추론 담당). 모델 ID 확인: `references/schemas/models.md`
 
 ## 워크플로우
 

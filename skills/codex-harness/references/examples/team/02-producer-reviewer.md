@@ -11,22 +11,15 @@
 | @webtoon-artist   | Coder    | 패널 이미지 생성 | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`                        | `generate-webtoon`                    |
 | @webtoon-reviewer | Reviewer | 품질 검수        | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`, shell `find`, `grep_search` | `review-webtoon`, `fix-webtoon-panel` |
 
-## 에이전트 파일 전문 예시: `.codex/agents/webtoon-reviewer.md`
+## 에이전트 파일 전문 예시: `.codex/agents/webtoon-reviewer.toml`
 
-````markdown
----
-name: webtoon-reviewer
-description: "웹툰 패널의 품질을 검수하는 전문가. 구도·캐릭터 일관성·텍스트 가독성·연출을 평가. 웹툰 QA·검수·재작업 요청 시 반드시 이 에이전트를 선택."
-kind: local
-model: "gpt-5.5"
-temperature: 0.2
-max_turns: 10
-tools:
-  - read_file
-  - apply_patch
-  - glob
-  - grep_search
----
+````toml
+name = "webtoon-reviewer"
+description = "웹툰 패널의 품질을 검수하는 전문가. 구도·캐릭터 일관성·텍스트 가독성·연출을 평가. 웹툰 QA·검수·재작업 요청 시 반드시 이 에이전트를 선택."
+model = "gpt-5.3-codex"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
 
 # Webtoon Reviewer — 웹툰 품질 검수 전문가
 
@@ -72,6 +65,7 @@ tools:
 - 이미지 로드 실패 시 해당 패널을 REDO로 판정
 - 3회 재생성 후에도 REDO인 패널은 **Blocked 처리 후 사용자 확인 요청으로 사용자 개입 요청. 임의 PASS 처리 절대 금지.**
 - 판정 기준이 모호하면 사용자 확인 요청으로 레퍼런스 이미지를 요청
+"""
 ````
 
 ## 오케스트레이터 워크플로우
