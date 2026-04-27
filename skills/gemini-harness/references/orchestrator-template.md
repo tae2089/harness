@@ -65,15 +65,34 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 ### Step 1: 초기화
 
 1. `user_input`에서 `{plan_name}` 파싱. 없으면 `ask_user("작업 이름을 지정해주세요.")` → RETURN.
-2. 디렉터리 생성: `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`.
-3. `workflow.md` 작성 — 패턴에 따라 타이밍이 다르다:
+2. 디렉터리 생성: `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
+3. **스키마 템플릿 동기화 (필수):** 본 스킬의 `references/schemas/` 디렉터리에서 5개 파일을 읽어 `_workspace/_schemas/`에 그대로 작성한다. 각 파일에 대해 `read_file` → `write_file` 1쌍씩 실행:
+
+   | 소스 (스킬 reference 경로) | 대상 (워크스페이스 경로) |
+   |---------------------------|------------------------|
+   | `references/schemas/task.schema.json` | `_workspace/_schemas/task.schema.json` |
+   | `references/schemas/checkpoint.schema.json` | `_workspace/_schemas/checkpoint.schema.json` |
+   | `references/schemas/workflow.template.md` | `_workspace/_schemas/workflow.template.md` |
+   | `references/schemas/findings.template.md` | `_workspace/_schemas/findings.template.md` |
+   | `references/schemas/tasks.template.md` | `_workspace/_schemas/tasks.template.md` |
+
+   > `README.md`는 메인테이너 문서 — 워크스페이스에 복사하지 않는다.
+   > **`run_shell_command("cp ...")` 금지** — 런타임 워킹 디렉터리(사용자 프로젝트 루트)에서 스킬 reference 경로는 셸로 도달 불가. 반드시 에이전트 도구 `read_file` + `write_file` 사용.
+
+   **운영 규칙:**
+   - 워커 에이전트는 자기 산출물 작성 전 `_workspace/_schemas/task.schema.json` 읽기.
+   - 메인은 `task_*.json`·`checkpoint.json` 갱신 시 매번 스키마 검증.
+   - 스킬 갱신 시 다음 init부터 새 스키마 적용. 진행 중 워크스페이스 스키마 변경 금지(스냅샷 보존).
+   - **SoT:** `references/schemas/`. 워크스페이스 사본은 실행 시점 스냅샷.
+
+4. `workflow.md` 작성 — `_workspace/_schemas/workflow.template.md`를 시작점으로 사용. 패턴에 따라 타이밍이 다르다:
 
    | 패턴 | 작성 방식 |
    |------|-----------|
    | `pipeline` / `fan_out_fan_in` / `producer_reviewer` / `handoff` / `expert_pool` | 사용자 요청 기반 즉시 작성 |
    | `supervisor` / `hierarchical` | Discovery Agent 먼저 호출 → 산출물 기반 작성 |
 
-4. `findings.md` 초기화 — 패턴별 필요 섹션만 포함:
+5. `findings.md` 초기화 — `_workspace/_schemas/findings.template.md` 복사 후, 패턴별 필요 섹션만 남기고 나머지 제거:
 
    | 패턴 | 섹션 |
    |------|------|
@@ -84,8 +103,8 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | supervisor / handoff | + `[데이터 충돌]` |
    | expert_pool | + `[라우팅 근거]` (형식: `"- {에이전트}: {이유} (매칭 키워드: {키워드})"`) |
 
-5. `tasks.md` 초기화: `| ID | 에이전트 | 작업 내용 | 상태 | Evidence | 산출물 경로 |`
-6. `checkpoint.json` 생성:
+6. `tasks.md` 초기화 — `_workspace/_schemas/tasks.template.md` 복사 (헤더만 유지, 행은 비움).
+7. `checkpoint.json` 생성 — `_workspace/_schemas/checkpoint.schema.json` 필드를 모두 채워 작성:
 
 ```json
 {
@@ -108,7 +127,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 > **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: main`, `#### Step 1: main`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
 > **파싱 예시:** `### Stage 1: main` → `current_stage = "main"` / `#### Step 1: research` → `current_step = "research"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
 
-7. **workflow.md 스키마 검증 (작성 직후 필수, 사이클 검증보다 먼저 실행):**
+8. **workflow.md 스키마 검증 (작성 직후 필수, 사이클 검증보다 먼저 실행):**
 
    각 Stage·Step 블록에서 **필수 필드 누락**을 모두 검사한다. 한 건이라도 누락 시 즉시 차단.
 
@@ -121,7 +140,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | **`종료 조건` 검증 가능 술어** | 키워드 화이트리스트: `task_*.json`·`status=done`·`존재`·`verdict=`·`score ≥`·`iterations ≥`. 화이트리스트 미매칭 + LLM 자의 해석 키워드(`승인`·`충분`·`완료되면`·`만족`·`적절히`) 발견 시 위반 | `ask_user("Step {name}의 종료 조건이 자연어다('{value}'). 검증 가능 술어로 재작성: 파일 존재·JSON 필드값·iteration ≥ N.")` → HALT |
    | 사용자 승인 게이트 누락 | Stage 블록에 명시 안 됨 | 동일 |
 
-8. **workflow.md 사이클 검증 (스키마 검증 통과 후):**
+9. **workflow.md 사이클 검증 (스키마 검증 통과 후):**
 
    | 검사 항목 | 방법 | 실패 시 액션 |
    |-----------|------|-------------|
@@ -131,7 +150,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
    > 두 검사는 Step 2 루프 진입 전 단 1회 실행. resume 경로(Step 0 → Step 2)에서는 생략 가능(workflow.md가 이미 검증된 상태).
 
-9. GOTO Step 2.
+10. GOTO Step 2.
 
 ---
 

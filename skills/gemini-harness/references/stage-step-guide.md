@@ -50,7 +50,7 @@
 
 `_workspace/workflow.md`는 모든 하네스에 필수. Stage·Step 구조를 선언하며, 오케스트레이터가 매 사이클 읽는다.
 
-> 실제 작성 시 `references/templates/workflow.template.md`를 복사해 변수만 치환하면 빠르다.
+> 실제 작성 시 `_workspace/_schemas/workflow.template.md`(Step 1.3에서 동기화된 사본) 변수 치환 후 `_workspace/workflow.md`로 `write_file`.
 
 ### 단순 워크플로우 예시 (stage 1 + step 1)
 

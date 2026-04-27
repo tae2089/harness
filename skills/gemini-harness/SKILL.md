@@ -231,6 +231,12 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 ```
 _workspace/
+├── _schemas/                    [WRITE: 메인(Step 1만)]  [READ: 모든 에이전트(자기 산출물 검증)]
+│   ├── task.schema.json         (JSON Schema — task_*.json 검증)
+│   ├── checkpoint.schema.json   (JSON Schema — checkpoint.json 검증)
+│   ├── findings.template.md     (섹션 골격 — 패턴별 필요 섹션 가이드)
+│   ├── tasks.template.md        (표 골격 — 메인 통합용)
+│   └── workflow.template.md     (Stage-Step 블록 골격 + 필드 룰)
 ├── workflow.md             [WRITE: 메인(Step 1만)] [READ: 메인(매 사이클)]
 ├── findings.md             [WRITE: 메인 단독]      [READ: 모든 에이전트(프롬프트 주입)]
 ├── tasks.md                [WRITE: 메인 단독]      [READ: 메인]
@@ -240,6 +246,8 @@ _workspace/
 └── {plan_name}/
     └── {step}_{agent}_*.md      [WRITE: 워커]           [READ: 메인 → findings 요약]
 ```
+
+**`_schemas/` 자기 검증 워크스페이스:** Step 1.3에서 스킬 `references/schemas/` 5종(`task.schema.json`·`checkpoint.schema.json`·`workflow.template.md`·`findings.template.md`·`tasks.template.md`)을 `read_file` → `write_file` 쌍으로 `_workspace/_schemas/`에 작성(**셸 `cp` 금지** — 런타임 워킹 디렉터리에서 스킬 reference 경로는 셸 도달 불가, 반드시 에이전트 도구 사용). 워커는 자기 `task_*.json` 작성 전 `_workspace/_schemas/task.schema.json` 읽고 형식 맞춤. 메인은 `task_*.json`·`checkpoint.json` 갱신 시 매번 스키마 검증. 스킬 갱신 시 다음 init부터 적용 — 진행 중 워크스페이스 스냅샷은 보존. SoT: `references/schemas/`.
 
 **핵심 규칙:**
 - **워커는 `tasks.md`·`findings.md`·`checkpoint.json` 절대 직접 수정 금지** — 병렬 호출 시 race condition으로 데이터 손실.
@@ -404,7 +412,7 @@ _workspace/
 - [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → gemini-3.1-pro-preview, 워커 → gemini-3-flash-preview), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
 - [ ] `{프로젝트}/.gemini/skills/{name}/SKILL.md` — 스킬 파일들 (SKILL.md + 필요 시 `references/`·`scripts/`·`assets/`).
 - [ ] 오케스트레이터 스킬 1개 (Step 0 재실행 감지 + 데이터 흐름 + 에러 핸들링 + 테스트 시나리오 포함).
-- [ ] `_workspace/` 표준 경로 정의 — `workflow.md`(Stage-Step 구조 선언), `findings.md`, `tasks.md`, `checkpoint.json`, `{plan_name}/`(실행 산출물), `tasks/task_{agent}_{id}.json`(에이전트별 상태 파일), `evals/{timestamp}/grading.json`.
+- [ ] `_workspace/` 표준 경로 정의 — `_schemas/`(Step 1.3에서 `references/schemas/` 5종 `read_file`+`write_file` 쌍으로 동기화), `workflow.md`(Stage-Step 구조 선언), `findings.md`, `tasks.md`, `checkpoint.json`, `{plan_name}/`(실행 산출물), `tasks/task_{agent}_{id}.json`(에이전트별 상태 파일), `evals/{timestamp}/grading.json`.
 - [ ] `{프로젝트}/GEMINI.md` — 하네스 포인터(트리거 규칙 + 변경 이력) 등록.
 - [ ] `.gemini/commands/` — **아무것도 생성하지 않음**.
 - [ ] 기존 에이전트/스킬과 충돌 없음 (트리거 충돌 포함).
@@ -431,4 +439,4 @@ _workspace/
 - **하네스 진화 프로토콜** (피드백 반영, 변경 이력, 운영/유지보수 워크플로우): `references/evolution-protocol.md`
 - **기존 확장 Phase 선택 매트릭스** (변경 유형별 실행 Phase 결정): `references/expansion-matrix.md`
 - **Stage-Step 워크플로우 가이드** (workflow.md 명세, checkpoint.json 스키마, Step·Stage 전환 프로토콜): `references/stage-step-guide.md` / 예시 5종: `references/examples/step/01~05-*.md` / 테스트 시나리오 6종: `references/examples/step/test-scenarios.md`
-- **workflow.md 작성 템플릿** (복사 후 변수 치환): `references/templates/workflow.template.md`
+- **workflow.md 작성 템플릿** (변수 치환 후 `_workspace/workflow.md`로 작성): `references/schemas/workflow.template.md`
