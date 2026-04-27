@@ -230,7 +230,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 **종료 조건 미충족 시:**
 
-1. `iterations < max_iterations` → `step_history` 배열에서 `stage==current_stage AND step==current_step`인 항목 찾아 `.iterations` 증가(없으면 신규 추가) → Step 2 루프 상단 재진입 (같은 Step 재실행).
+1. `iterations < max_iterations` → `step_history` 배열에서 `stage==current_stage AND step==current_step`인 항목 찾아 `.iterations` 증가(없으면 신규 추가) → `active_pattern == "handoff"` 이면 checkpoint.json `handoff_chain: []` 리셋 (새 iteration = 새 체인) → Step 2 루프 상단 재진입 (같은 Step 재실행).
 2. 소진 → findings.md에 `"Step {current_step}: max_iterations 소진, 종료 조건 미충족"` 기록 → blocked_protocol. (상세: `references/orchestrator-procedures.md`)
 
 ---
