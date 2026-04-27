@@ -14,11 +14,13 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 ## Stage 정의
 
 ### Stage 1: discovery
+
 - 종료 조건: 모든 step 완료
 - 다음 stage: build
 - 사용자 승인 게이트: 필요
 
 #### Step 1: market-research
+
 - 패턴: fan_out_fan_in
 - 활성 에이전트: [@trend-researcher, @competitor-researcher, @user-researcher]
 - 종료 조건: `_workspace/discovery/task_trend.json`, `task_competitor.json`, `task_user.json` 모두 status=done
@@ -26,6 +28,7 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 1
 
 #### Step 2: requirements
+
 - 패턴: pipeline
 - 활성 에이전트: [@requirements-analyst]
 - 종료 조건: `_workspace/discovery/requirements.md` 존재
@@ -33,11 +36,13 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 1
 
 ### Stage 2: build
+
 - 종료 조건: 모든 step 완료
 - 다음 stage: validate
 - 사용자 승인 게이트: 필요
 
 #### Step 1: design
+
 - 패턴: pipeline
 - 활성 에이전트: [@architect]
 - 종료 조건: `_workspace/build/architecture.md` 존재
@@ -45,6 +50,7 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 1
 
 #### Step 2: implement
+
 - 패턴: supervisor
 - 활성 에이전트: [@coder-1, @coder-2, @coder-3]
 - 종료 조건: `_workspace/build/tasks/task_*.json` 모두 status=done (메인이 동적 배치)
@@ -52,6 +58,7 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 1
 
 #### Step 3: code-review
+
 - 패턴: producer_reviewer
 - 활성 에이전트: [@reviewer, @coder-1, @coder-2, @coder-3]
 - 종료 조건: `_workspace/build/review_verdict.json`의 verdict=PASS
@@ -59,11 +66,13 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 3
 
 ### Stage 3: validate
+
 - 종료 조건: 모든 step 완료
 - 다음 stage: done
 - 사용자 승인 게이트: 없음 (마지막 stage)
 
 #### Step 1: parallel-qa
+
 - 패턴: fan_out_fan_in
 - 활성 에이전트: [@security-reviewer, @perf-reviewer, @compat-reviewer]
 - 종료 조건: `_workspace/validate/task_security.json`, `task_perf.json`, `task_compat.json` 모두 status=done
@@ -71,6 +80,7 @@ Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipelin
 - 최대 반복 횟수: 1
 
 #### Step 2: release-notes
+
 - 패턴: pipeline
 - 활성 에이전트: [@doc-writer]
 - 종료 조건: `_workspace/validate/RELEASE_NOTES.md` 존재

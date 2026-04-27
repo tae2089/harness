@@ -6,10 +6,10 @@
 
 ## 에이전트 구성
 
-| 에이전트          | 유형     | 역할             | 핵심 도구                                                                      | 스킬                                  |
-| ----------------- | -------- | ---------------- | ------------------------------------------------------------------------------ | ------------------------------------- |
-| @webtoon-artist   | Coder    | 패널 이미지 생성 | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`                        | `generate-webtoon`                    |
-| @webtoon-reviewer | Reviewer | 품질 검수        | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`, shell `find`, `grep_search` | `review-webtoon`, `fix-webtoon-panel` |
+| 에이전트          | 유형     | 역할             | sandbox_mode      | 스킬                                  |
+| ----------------- | -------- | ---------------- | ----------------- | ------------------------------------- |
+| @webtoon-artist   | Coder    | 패널 이미지 생성 | `workspace-write` | `generate-webtoon`                    |
+| @webtoon-reviewer | Reviewer | 품질 검수        | `workspace-write` | `review-webtoon`, `fix-webtoon-panel` |
 
 ## 에이전트 파일 전문 예시: `.codex/agents/webtoon-reviewer.toml`
 
@@ -87,7 +87,7 @@ Phase 2: [Step 실행 루프 — Stage webtoon-episode / Step produce]
          - FIX/REDO 패널 → 수정 지시를 findings.md [변경 요청]에 기록 → @webtoon-artist 재호출
            (FIX: 부분 수정, REDO: 전면 재생성)
          - 1회차 검수 후 REDO 패널이 전체의 50% 이상이면 재호출 전 사용자 확인 요청으로 프롬프트 재조정 제안
-         - FIX+REDO 합산 재호출 최대 2회 재시도(총 3회). 초과 시 Blocked → ask_user
+         - FIX+REDO 합산 재호출 최대 2회 재시도(총 3회). 초과 시 Blocked → 사용자 확인 요청
          루프 탈출 조건: 모든 패널 PASS → Phase 3으로 전환
 Phase 3: 최종 PASS 집계 → step "produce" 종료 조건 충족
          checkpoint.json 갱신:
@@ -96,6 +96,6 @@ Phase 3: 최종 PASS 집계 → step "produce" 종료 조건 충족
            - current_stage·current_step: "done", status: "completed", last_updated: 현재 타임스탬프
          사용자 승인 게이트: 없음 → 워크플로우 자동 완료
 Phase 4: 최종 에피소드 _workspace/{plan_name}/final/episode.md 생성
-         (Blocked 패널은 ask_user 승인 후 사용자 결정에 따라 포함·제외 처리)
+         (Blocked 패널은 사용자 확인 요청 승인 후 사용자 결정에 따라 포함·제외 처리)
 Phase 5: 사용자 보고, _workspace/ 보존
 ```

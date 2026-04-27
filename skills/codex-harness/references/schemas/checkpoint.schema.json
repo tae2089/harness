@@ -63,9 +63,12 @@
         "type": "object",
         "required": ["stage", "completed_at"],
         "properties": {
-          "stage": {"type": "string"},
-          "completed_at": {"type": "string", "pattern": "^[0-9]{8}_[0-9]{6}$"},
-          "user_approved": {"type": "boolean"}
+          "stage": { "type": "string" },
+          "completed_at": {
+            "type": "string",
+            "pattern": "^[0-9]{8}_[0-9]{6}$"
+          },
+          "user_approved": { "type": "boolean" }
         }
       },
       "description": "Append-only log of completed Stages."
@@ -76,10 +79,10 @@
         "type": "object",
         "required": ["stage", "step", "iterations", "completed_at"],
         "properties": {
-          "stage": {"type": "string"},
-          "step": {"type": "string"},
-          "iterations": {"type": "integer", "minimum": 1},
-          "completed_at": {"type": "string", "pattern": "^[0-9]{8}_[0-9]{6}$"}
+          "stage": { "type": "string" },
+          "step": { "type": "string" },
+          "iterations": { "type": "integer", "minimum": 1 },
+          "completed_at": { "type": "string", "pattern": "^[0-9]{8}_[0-9]{6}$" }
         }
       },
       "description": "Append-only log of completed Steps with iteration count (loop pattern check)."
@@ -88,21 +91,21 @@
       "type": "object",
       "additionalProperties": {
         "type": "array",
-        "items": {"type": "string"}
+        "items": { "type": "string" }
       },
       "description": "Map: stage_name → list of artifact file paths produced."
     },
     "handoff_chain": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": { "type": "string" },
       "description": "Active handoff sequence (handoff pattern only). Reset to [] on stage transition or step completion."
     },
     "tasks_snapshot": {
       "type": "object",
       "required": ["done", "current"],
       "properties": {
-        "done": {"type": "array", "items": {"type": "string"}},
-        "current": {"type": ["string", "null"]}
+        "done": { "type": "array", "items": { "type": "string" } },
+        "current": { "type": ["string", "null"] }
       },
       "description": "Cached list of done task ids and currently-active task id."
     },
@@ -112,7 +115,7 @@
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required when status=blocked. Surface to user via ask_user."
+      "description": "Required when status=blocked. Surface to user via 사용자 확인 요청."
     },
     "blocked_agent": {
       "type": "string",
@@ -127,8 +130,8 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "blocked"}}},
-      "then": {"required": ["blocked_reason", "blocked_agent"]}
+      "if": { "properties": { "status": { "const": "blocked" } } },
+      "then": { "required": ["blocked_reason", "blocked_agent"] }
     }
   ]
 }

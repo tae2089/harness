@@ -32,7 +32,7 @@
 | 피드백 유형     | 수정 대상                 | 예시                                             |
 | --------------- | ------------------------- | ------------------------------------------------ |
 | 결과물 품질     | 해당 에이전트의 스킬      | "분석이 너무 피상적" → 스킬에 깊이 기준 추가     |
-| 에이전트 역할   | 에이전트 정의 `.md`       | "보안 검토도 필요" → 새 에이전트 추가            |
+| 에이전트 역할   | 에이전트 정의 `.toml`     | "보안 검토도 필요" → 새 에이전트 추가            |
 | 워크플로우 순서 | 오케스트레이터 스킬       | "검증을 먼저 해야" → Step 순서 변경             |
 | 팀 구성         | 오케스트레이터 + 에이전트 | "이 둘은 합쳐도 될 듯" → 에이전트 병합           |
 | 트리거 누락     | 스킬 description          | "이 표현으로 하면 작동 안 함" → description 확장 |
@@ -48,7 +48,7 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |---|---|---|---|
 | 2026-04-05 | 초기 구성 | 전체 | - |
-| 2026-04-07 | QA 에이전트 추가 | agents/qa-inspector.md | 산출물 품질 검증 부족 피드백 |
+| 2026-04-07 | QA 에이전트 추가 | agents/qa-inspector.toml | 산출물 품질 검증 부족 피드백 |
 | 2026-04-10 | 톤 가이드 추가 | skills/content-creator | "너무 딱딱하다" 피드백 |
 ```
 
@@ -80,7 +80,7 @@
 - 변경 유형 분류 후 실행할 Step 결정: `references/expansion-matrix.md` — `classify_change()` 참조.
 - 변경은 한 번에 하나씩, 각 변경 후 즉시 Step 3을 실행.
 
-> **실행 중 진화 안전성:** 하네스가 현재 실행 중(`_workspace/checkpoint.json`의 `status: "in_progress"` 또는 `"partial"`)인 상태에서 스킬/에이전트 파일을 수정하면, 다음 사이클 재진입 시 오케스트레이터는 checkpoint.json에서 `current_stage`·`current_step`·`active_pattern`을 읽어 진행 위치를 복원한다. 따라서 **이미 완료된 Step는 재실행하지 않고** 다음 Step 진입 시 checkpoint.json의 `current_step` 복원 시점부터 진행된다. 수정된 에이전트·스킬 파일은 오케스트레이터가 다음에 `spawn_subagent`로 해당 에이전트를 호출하는 시점부터 적용된다. 단, 수정이 현재 실행 중인 Step의 에이전트·종료 조건에 영향을 준다면, 해당 Step를 수동으로 재실행하거나(`checkpoint.json`의 `current_step` 롤백) 처음부터 재시작할 것을 사용자에게 제안한다.
+> **실행 중 진화 안전성:** 하네스가 현재 실행 중(`_workspace/checkpoint.json`의 `status: "in_progress"` 또는 `"partial"`)인 상태에서 스킬/에이전트 파일을 수정하면, 다음 사이클 재진입 시 오케스트레이터는 checkpoint.json에서 `current_stage`·`current_step`·`active_pattern`을 읽어 진행 위치를 복원한다. 따라서 **이미 완료된 Step는 재실행하지 않고** 다음 Step 진입 시 checkpoint.json의 `current_step` 복원 시점부터 진행된다. 수정된 에이전트·스킬 파일은 오케스트레이터가 다음에 해당 에이전트를 호출하는 시점부터 적용된다. 단, 수정이 현재 실행 중인 Step의 에이전트·종료 조건에 영향을 준다면, 해당 Step를 수동으로 재실행하거나(`checkpoint.json`의 `current_step` 롤백) 처음부터 재시작할 것을 사용자에게 제안한다.
 
 ### Step 3: AGENTS.md 변경 이력 갱신
 

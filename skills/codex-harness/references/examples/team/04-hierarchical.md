@@ -68,7 +68,7 @@ Phase 1: findings.md 초기화: [공유 변수/경로]·[변경 요청]·[데이
          tasks.md 초기화
 Phase 2: [Step 실행 루프 — Stage feature-development / Step design]
          @frontend-team-lead / @backend-team-lead를
-         subagent spawn(wait_for_previous: false)로 배치 호출
+         병렬 배치 호출
          - 각 호출 프롬프트에 findings.md [공유 변수/경로]의 프론트/백엔드 API 계약 요약 주입
          → 각자 자기 영역 설계 완료 + 필요한 하위 작업을 task_{agent}_{id}.json에 기록
          → 메인 에이전트가 두 파일 수집 후 tasks.md에 원자적 통합 (동시 쓰기 충돌 방지)
@@ -78,7 +78,7 @@ Phase 2: [Step 실행 루프 — Stage feature-development / Step design]
 Phase 3: [Step 실행 루프 — Stage feature-development / Step implement]
          메인 에이전트가 tasks.md를 읽어 @ui-designer·@state-engineer·
          @api-designer·@db-engineer를 subagent spawn으로 순차/병렬 호출
-         (의존관계 없는 작업은 wait_for_previous: false로 병렬, 의존관계 있으면 순차)
+         (의존관계 없는 작업은 병렬, 의존관계 있으면 순차)
          → 산출물은 각 팀 리드가 통합 검수
          → 검수 실패 시 해당 에이전트 재호출 (최대 2회 재시도(총 3회))
          → 3회 후에도 실패 → Blocked, 사용자 확인 요청으로 수동 개입 요청

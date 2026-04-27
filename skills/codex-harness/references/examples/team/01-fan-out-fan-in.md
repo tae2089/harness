@@ -6,12 +6,12 @@
 
 ## 에이전트 구성
 
-| 에이전트               | 유형    | 핵심 도구                                                                   | 산출물                                    |
-| ---------------------- | ------- | --------------------------------------------------------------------------- | ----------------------------------------- |
-| @official-researcher   | Analyst | 사용자 확인 요청, 스킬 로드, shell `cat`, `google_web_search`, `web_fetch` | `_workspace/{plan_name}/01_official.md`   |
-| @media-researcher      | Analyst | 사용자 확인 요청, 스킬 로드, shell `cat`, `google_web_search`, `web_fetch` | `_workspace/{plan_name}/01_media.md`      |
-| @community-researcher  | Analyst | 사용자 확인 요청, 스킬 로드, shell `cat`, `google_web_search`, `web_fetch` | `_workspace/{plan_name}/01_community.md`  |
-| @background-researcher | Analyst | 사용자 확인 요청, 스킬 로드, shell `cat`, `google_web_search`, `web_fetch` | `_workspace/{plan_name}/01_background.md` |
+| 에이전트               | 유형    | sandbox_mode  | 산출물                                    |
+| ---------------------- | ------- | ------------- | ----------------------------------------- |
+| @official-researcher   | Analyst | `read-only`   | `_workspace/{plan_name}/01_official.md`   |
+| @media-researcher      | Analyst | `read-only`   | `_workspace/{plan_name}/01_media.md`      |
+| @community-researcher  | Analyst | `read-only`   | `_workspace/{plan_name}/01_community.md`  |
+| @background-researcher | Analyst | `read-only`   | `_workspace/{plan_name}/01_background.md` |
 
 ## 오케스트레이터 워크플로우
 
@@ -32,7 +32,7 @@ Phase 1: 사용자 입력 분석
          findings.md 초기화: [핵심 통찰], [핵심 키워드], [공유 변수/경로], [데이터 충돌] 섹션 생성
 Phase 2: [Step 실행 루프 — Stage competitor-research / Step research]
          단일 응답 턴에서 @official/@media/@community/@background를
-         subagent spawn(wait_for_previous: false)로 배치 호출
+         병렬 배치 호출
          - 각 에이전트 프롬프트에 findings.md의 [핵심 키워드]·[공유 변수/경로] 주입
 Phase 3: 각 산출물을 `cat`으로 수집
          - 산출물 파일 미존재(에이전트 실패) → 최대 2회 재시도(총 3회).

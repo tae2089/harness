@@ -42,7 +42,7 @@
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required when status=blocked. Concrete blocker description for ask_user routing."
+      "description": "Required when status=blocked. Concrete blocker description for 사용자 확인 요청 routing."
     },
     "timestamp": {
       "type": "string",
@@ -57,12 +57,12 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "done"}}},
-      "then": {"required": ["evidence", "artifact"]}
+      "if": { "properties": { "status": { "const": "done" } } },
+      "then": { "required": ["evidence", "artifact"] }
     },
     {
-      "if": {"properties": {"status": {"const": "blocked"}}},
-      "then": {"required": ["blocked_reason"]}
+      "if": { "properties": { "status": { "const": "blocked" } } },
+      "then": { "required": ["blocked_reason"] }
     }
   ]
 }

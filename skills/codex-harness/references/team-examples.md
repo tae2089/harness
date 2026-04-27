@@ -2,7 +2,7 @@
 
 5개 아키텍처 패턴 실전 사례. **Codex CLI 환경에서는 서브에이전트 간 직접 통신이 불가능**하므로, 모든 팀 통신은 메인 에이전트가 `_workspace/findings.md`·`_workspace/tasks.md`를 통해 중개한다.
 
-> **주의:** Claude Code의 `TeamCreate`·`SendMessage`·`TaskCreate` 같은 팀 API는 Codex CLI에 존재하지 않는다. 서브에이전트 호출은 **`spawn_subagent` 도구**를 사용하며, 병렬 실행이 필요한 경우 **`wait_for_previous: false`** 파라미터를 지정하여 구현한다.
+> **주의:** Claude Code의 `TeamCreate`·`SendMessage`·`TaskCreate` 같은 팀 API는 Codex CLI에 존재하지 않는다. 서브에이전트 호출은 **@agent-name 지시**로 수행하며, 병렬 실행이 필요한 경우 단일 응답 턴 내 연속 호출로 구현한다.
 > **Stage-Step 구조 필수:** 모든 예시의 오케스트레이터는 Step 0에서 `checkpoint.json`(`status`, `current_stage`, `current_step`)을 읽어 실행 모드를 결정하고, Step 1에서 `workflow.md`를 생성(Resume 모드는 기존 파일 읽기)한다. 예시 1의 오케스트레이터 워크플로우가 기준 구현이며, 나머지 예시도 동일 패턴을 적용한다.
 
 ---
@@ -34,9 +34,8 @@
 
 ### 에이전트 정의 파일
 
-- 경로: `.codex/agents/{agent-name}.md` (프로젝트) 또는 `~/.codex/agents/{agent-name}.md` (사용자).
-- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gpt-5.5"`, 워커 → `"gpt-5.3-codex"` , `tools` (반드시 사용자 확인 요청·스킬 로드 포함).
-- 권장 YAML: `temperature`(역할별 0.2~0.7), `max_turns`(5~20).
+- 경로: `.codex/agents/{agent-name}.toml` (프로젝트) 또는 `~/.codex/agents/{agent-name}.toml` (사용자).
+- 필수 TOML 필드: `name`, `description`(pushy·후속 키워드 포함), `model`(오케스트레이터·Architect → `"gpt-5.5"`, 워커 → `"gpt-5.3-codex"`), `sandbox_mode`(역할별), `model_reasoning_effort = "high"`.
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Codex CLI), 에러 핸들링.
 
 ### findings.md 표준 섹션 구조
@@ -66,7 +65,7 @@
 
 - **상태 값**: `Todo` → `In-Progress` → `Done` | `Blocked`
 - **메인 에이전트 단독 갱신**: 워커는 `task_{agent}_{id}.json`에만 기록. tasks.md는 메인이 수집 후 원자적 갱신.
-- **Blocked 항목**: ask_user 호출 시 해당 행 상태를 `Blocked`로 표시.
+- **Blocked 항목**: 사용자 확인 요청 후 해당 행 상태를 `Blocked`로 표시.
 
 ### 스킬 파일 구조
 

@@ -115,7 +115,7 @@
 
 | 필드 | 작성 규칙 | 예시 |
 |------|----------|------|
-| `활성 에이전트` | Step 블록에서만 선언. `@name` 형식, `.codex/agents/{name}.md`와 일치 | `[@writer, @editor]` |
+| `활성 에이전트` | Step 블록에서만 선언. `@name` 형식, `.codex/agents/{name}.toml`와 일치 | `[@writer, @editor]` |
 | `종료 조건` | 검증 가능한 술어만 허용 (파일 존재, JSON 필드값, 수치 임계값) | `task_*.json` 모두 status=done |
 | `다음 step` | 다음 step 이름 또는 `done` | `architecture` / `done` |
 | `다음 stage` | 다음 stage 이름 또는 `done` | `validate` / `done` |
@@ -198,10 +198,10 @@ Stage {현재 stage} 완료:
 Codex CLI agent frontmatter는 커스텀 필드를 지원하지 않는다. 출입 통제는 **workflow.md의 step 블록 `활성 에이전트` 목록**으로 수행한다.
 
 ```
-spawn_subagent 호출 전 확인:
+에이전트 호출 전 확인:
 1. workflow.md에서 current_stage → current_step 블록 찾기.
 2. 해당 step의 `활성 에이전트` 목록 읽기.
-3. 호출 대상이 목록에 있으면 → spawn_subagent 허용.
+3. 호출 대상이 목록에 있으면 → 호출 허용.
 4. 목록에 없으면 → 호출 보류, 필요 시 사용자에게 보고:
    "@writer는 현재 step({current_stage}/{current_step})의 활성 에이전트가 아닙니다."
 ```
@@ -228,7 +228,7 @@ spawn_subagent 호출 전 확인:
 |---|------|----------------|----------|
 | 1 | 단순 workflow.md 구조 검증 | Stage 1개 + Step 1개 생성 여부 | Stage 2 블록 없음 + `main/main` 구조 |
 | 2 | 다단계 워크플로우 트리거 | 발화에서 다단계 자동 선택 | Stage 블록 2개 이상 존재 |
-| 3 | Step 종료 조건 미충족 → 전환 차단 | 미완료 task 있을 때 다음 Step 진입 금지 | Stage 2 에이전트 spawn_subagent 미발생 |
+| 3 | Step 종료 조건 미충족 → 전환 차단 | 미완료 task 있을 때 다음 Step 진입 금지 | Stage 2 에이전트 호출 미발생 |
 | 4 | Step 자동 전환 (승인 불필요) | 종료 조건 충족 시 사용자 개입 없이 전환 | 승인 요청 없이 다음 Step 에이전트 호출 |
 | 5 | Stage 전환 게이트 (승인 필수) | Stage 완료 시 승인 게이트 발동 | 승인 요청 발생 + 다음 Stage 에이전트 미호출 |
-| 6 | Step별 에이전트 출입 통제 | 현재 Step 목록 외 에이전트 호출 차단 | 비활성 에이전트 spawn_subagent 미발생 |
+| 6 | Step별 에이전트 출입 통제 | 현재 Step 목록 외 에이전트 호출 차단 | 비활성 에이전트 호출 미발생 |

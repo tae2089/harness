@@ -5,21 +5,21 @@
 
 ## 에러 핸들링 및 자가 치유
 
-> **정본(canonical spec).** 다른 파일(qa-agent-guide, agent-design-patterns 등)의 재시도·Blocked·ask_user 언급은 이 결정 트리를 따른다.
+> **정본(canonical spec).** 다른 파일(qa-agent-guide, agent-design-patterns 등)의 재시도·Blocked·사용자 확인 요청 언급은 이 결정 트리를 따른다.
 
 ### 에러 대응 결정 트리 (pseudocode)
 
 ```
 PROCEDURE handle_error(agent, task, error_type):
 
-    // ── 즉시 ask_user (재시도 없음) ──────────────────────────────
+    // ── 즉시 사용자 확인 요청 (재시도 없음) ──────────────────────────────
     IF error_type == "ambiguous_input" OR error_type == "missing_params":
-        CALL ask_user("입력 모호 또는 파라미터 누락: {상세}")
+        CALL 사용자 확인 요청("입력 모호 또는 파라미터 누락: {상세}")
         RETURN
 
     IF error_type == "majority_failure":        // 과반 에이전트 실패
         apply_patch "_workspace/tasks.md" ← 중단 지점 기록
-        CALL ask_user("과반 실패. 진행 여부 확인 요청.")
+        CALL 사용자 확인 요청("과반 실패. 진행 여부 확인 요청.")
         RETURN
 
     // ── 자동 복구 (Step 0 재개) ──────────────────────────────────
@@ -33,20 +33,20 @@ PROCEDURE handle_error(agent, task, error_type):
     // ── 데이터 충돌 ──────────────────────────────────────────────
     IF error_type == "data_conflict":
         RECORD findings.md ← "[데이터 충돌]" 섹션에 출처 병기
-        CALL spawn_subagent(reviewer, conflict_resolution_prompt)
+        @reviewer 호출 (conflict_resolution_prompt)
         IF reviewer resolves conflict:
             RETURN
         ELSE:
-            CALL ask_user("데이터 충돌 미해소: {상세}")
+            CALL 사용자 확인 요청("데이터 충돌 미해소: {상세}")
             RETURN
 
     // ── 재시도 가능한 실패 ───────────────────────────────────────
-    // 해당: agent_failure | reviewer_reject | max_turns_exceeded
+    // 해당: agent_failure | reviewer_reject | context_limit_exceeded
     // 해당: handoff_no_candidate (핸드오프 대상 없음)
     IF task.retries < 2:                        // 총 3회 미만
         task.retries += 1
         RECORD findings.md ← "재시도 {task.retries}/2: {에러 원인} → 접근법 변경"
-        CALL spawn_subagent(agent, modified_prompt_with_feedback)
+        @agent 호출 (modified_prompt_with_feedback)
         RETURN
 
     // ── 3회 소진 → Blocked 프로토콜 ─────────────────────────────
@@ -63,7 +63,7 @@ PROCEDURE blocked_protocol(agent, task):
     DO NOT UPDATE checkpoint.json  // 역할 분리: blocked_protocol은 task 파일만 기록.
                                    // Step 2의 pre-blocked 검사가 다음 사이클 진입 시 task 파일을 감지하고
                                    // checkpoint를 blocked로 갱신한다. blocked_protocol이 직접 갱신하면 중복 갱신.
-    CALL ask_user("Blocked: @{agent} — {사유}. 개입 요청.")
+    CALL 사용자 확인 요청("Blocked: @{agent} — {사유}. 개입 요청.")
     HALT    // 임의 Skip·Done 절대 금지
 
 // ── 특수 케이스: Handoff 순환 감지 ──────────────────────────────
@@ -74,19 +74,19 @@ PROCEDURE handle_handoff(next_agent):
 
     IF next_agent IN call_history:
         RECORD findings.md ← "순환 핸드오프: {call_history} → {next_agent}"
-        CALL ask_user("순환 핸드오프 감지: {경로}. 개입 요청.")
+        CALL 사용자 확인 요청("순환 핸드오프 감지: {경로}. 개입 요청.")
         HALT
 
     IF LENGTH(call_history) >= 3:               // 3단계 초과
         RECORD findings.md ← "핸드오프 3단계 초과: {call_history}"
-        CALL ask_user("핸드오프 3단계 초과. 개입 요청.")
+        CALL 사용자 확인 요청("핸드오프 3단계 초과. 개입 요청.")
         HALT
 
     // 안전 → 이력 갱신 후 호출
     apply_patch "_workspace/checkpoint.json":
         ckpt.handoff_chain ← APPEND(call_history, next_agent)
         ckpt.last_updated  ← NOW()
-    CALL spawn_subagent(next_agent, ...)
+    @next_agent 호출 (...)
 
 // Step 전환 시 반드시 handoff_chain 초기화
 // (checkpoint.json 갱신 시 handoff_chain: [] 로 리셋)
@@ -111,7 +111,7 @@ PROCEDURE handle_handoff(next_agent):
 1. **중개자 역할 강조:** 메인 에이전트는 단순히 도구를 호출하는 것이 아니라, 결과를 분석하여 **다음 에이전트의 입력(Context)을 고도화**한다.
 2. **영속성 우선:** 모든 주요 상태 변경 직후에 파일을 갱신하여 예기치 못한 종료에 대비한다.
 3. **원자적 상태 통합:** 병렬 에이전트가 생성한 분할 작업 파일들을 오케스트레이터가 수집하여 통합함으로써 쓰기 충돌을 원천 차단한다.
-4. **엄격한 도구 격리:** 에이전트 호출 시 정의된 `tools` 범위를 벗어나는 작업을 시키지 않는다.
+4. **엄격한 SandBox Mode 격리:** 에이전트 호출 시 정의된 `sandbox_mode` 범위를 벗어나는 작업을 시키지 않는다.
 5. **가시성 확보:** 모든 중간 과정은 `findings.md`와 `tasks.md`를 통해 파일로 기록되어야 한다.
 6. **Step 의존성 명시:** workflow.md의 Step 순서와 종료 조건으로 의존성을 선언한다. Step N 완료 → Step N+1 진입 구조가 workflow.md에 명확히 표현되어야 한다.
 7. **현실적 에러 가정:** "모든 것이 성공한다"고 가정하지 않는다. Step Blocked 시 Stage 전환 금지 규칙 포함.
