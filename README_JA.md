@@ -1,6 +1,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
-  <img src="https://img.shields.io/badge/Gemini_CLI-Skill-4285F4.svg" alt="Gemini CLI Skill">
+  <img src="https://img.shields.io/badge/Codex_CLI-Skill-5C5C5C.svg" alt="Codex CLI Skill">
   <img src="https://img.shields.io/badge/Patterns-7_Architectures-orange.svg" alt="7 Architecture Patterns">
   <a href="https://github.com/tae2089/harness/stargazers"><img src="https://img.shields.io/github/stars/tae2089/harness?style=social" alt="GitHub Stars"></a>
 </p>
@@ -9,25 +9,32 @@
   <a href="#"><img src="https://img.shields.io/badge/README-EN%20%7C%20KO%20%7C%20JA-lightgrey" alt="i18n"></a>
 </p>
 
-# Harness — コーディングエージェントのサブエージェントオーケストレーション・メタフレームワーク
+# Harness — OpenAI Codex CLI サブエージェントオーケストレーション・メタフレームワーク
 
 [English](README.md) | [한국어](README_KO.md) | **日本語**
 
-Gemini CLI を中心としたコーディングエージェントで、専門サブエージェントチームと協調スキルを設計するメタフレームワーク。
+OpenAI Codex CLI で専門サブエージェントチームを設計するメタフレームワーク。ドメインの自然言語説明一つから、エージェント TOML 定義・オーケストレータースキル・ランタイムスキャフォールディング全体を生成します。
 
 ## 概要
 
-Harness はドメイン/プロジェクトに最適なエージェントチームを構成し、各エージェントの役割・ツール権限を定義し、共通手順スキルとオーケストレーターを生成するメタスキルです。主要な成果物は `.gemini/agents/`、`.gemini/skills/`、`GEMINI.md` であり、ランタイム状態はすべて `_workspace/` に永続化されます。
+Harness はドメイン/プロジェクトに最適なエージェントチームを構成し、各エージェントの役割・サンドボックス権限を定義し、オーケストレータースキルとランタイム状態管理を完全生成するメタスキルです。主要な成果物は `.codex/agents/{name}.toml`、`.agents/skills/{orchestrator}/SKILL.md`、`AGENTS.md` であり、ランタイム状態はすべて `_workspace/` に永続化されます。
 
 ## インストール
 
+**個人用（グローバル）:**
 ```bash
-gemini skills install https://github.com/tae2089/harness.git --path skills
+git clone https://github.com/tae2089/harness.git
+cp -r harness/skills/codex-harness ~/.agents/skills/
 ```
 
-インストール後、Gemini CLI セッションで `"ハーネスを構成して"` と発話し、`gemini-harness` スキルが自動トリガーされることを確認してください。
+**チーム用（リポジトリ内）:**
+```bash
+cp -r harness/skills/codex-harness .agents/skills/
+```
 
-> **初めての方へ →** まず [`references/usage-examples.md`](skills/gemini-harness/references/usage-examples.md) を確認してください。8 つのドメインシナリオ（SSO・マイグレーション・コンテンツループ・並列リサーチ・障害分析・フルスタック・拡張・部分再実行）と発話パターンのマッピング、非トリガー発話表を提供しています。
+インストール後、Codex CLI セッションで `"build a codex harness"` と発話し、`codex-harness` スキルが自動トリガーされることを確認してください。
+
+> **初めての方へ →** まず [`references/usage-examples.md`](skills/codex-harness/references/usage-examples.md) を確認してください。8 つのドメインシナリオ（SSO・マイグレーション・コンテンツループ・並列リサーチ・障害分析・フルスタック・拡張・部分再実行）と発話パターンのマッピング、非トリガー発話表を提供しています。
 
 ---
 
@@ -35,22 +42,22 @@ gemini skills install https://github.com/tae2089/harness.git --path skills
 
 - **7 つのアーキテクチャパターン:** Pipeline · Fan-out/Fan-in · Expert Pool · Producer-Reviewer · Supervisor · Hierarchical · Handoff。Stage（親課題 / Jira Issue）→ Step（子課題 / Jira Sub-issue）の階層で組み合わせます。
 - **命名規則の強制:** Stage・Step 名は deliverable 名詞句の kebab-case（`^[a-z][a-z0-9-]*$`）。`main`・`step1`・`task` などのプレースホルダーは workflow.md スキーマ検証でブロックされます。
-- **厳格なツール権限制御:** `tools: ["*"]` は禁止。すべてのエージェントに必須のツール: `ask_user`、`activate_skill`。`invoke_agent` はオーケストレーター・Supervisor・Hierarchical チームリーダーのみ。
-- **メインエージェントを単一ブローカーとして:** Gemini CLI にはサブエージェント間の直接通信 API（`SendMessage`/`TeamCreate`）がありません。すべての協調はメインが `_workspace/findings.md`・`tasks.md`・`checkpoint.json`・`task_*.json` 経由で仲介します。
-- **3 要素構成:** `.gemini/agents/` + `.gemini/skills/` + `GEMINI.md`。スラッシュコマンド（`.gemini/commands/`）は作成しません。
-- **Plan Mode 必須:** 新規構築・拡張時は `enter_plan_mode` を強制（yolo モードを除く）。
-- **Zero-Tolerance Failure Protocol:** 任意のスキップは絶対禁止。最大 2 回リトライ（合計 3 回）→ 未解決時は `Blocked` + `ask_user`。
+- **sandbox_mode 権限制御:** すべてのエージェントに明示的な `sandbox_mode` が必須: `read-only`（Analyst/Architect）· `workspace-write`（Coder/Reviewer/QA）· `danger-full-access`（Operator/Deployer）。ワイルドカード権限は禁止。
+- **メインエージェントを単一ブローカーとして:** Codex CLI にはサブエージェント間の直接通信 API がありません。すべての協調はメインが `_workspace/findings.md`・`tasks.md`・`checkpoint.json`・`task_*.json` 経由で仲介します。
+- **3 要素構成:** `.codex/agents/*.toml` + `.agents/skills/*/SKILL.md` + `AGENTS.md`。
+- **Plan Mode 必須:** 新規構築・拡張時は `/plan` または `Shift+Tab` で有効化。
+- **Zero-Tolerance Failure Protocol:** 任意のスキップは絶対禁止。最大 2 回リトライ（合計 3 回）→ 未解決時は `Blocked` + ユーザー確認要求。
 
 ## ディレクトリ構造
 
 ```
 harness/
 └── skills/
-    └── gemini-harness/
+    └── codex-harness/
         ├── SKILL.md                              # メインスキル定義
         └── references/
             ├── usage-examples.md                 # 🚀 トリガー発話 8 種 + モードマッピング
-            ├── agent-design-patterns.md          # 7 パターン + ツールマッピング
+            ├── agent-design-patterns.md          # 7 パターン + sandbox_mode マッピング
             ├── orchestrator-template.md          # オーケストレーター Step 0~5 疑似コード
             ├── orchestrator-procedures.md        # エラーハンドリング・blocked・handoff 手順
             ├── team-examples.md                  # 実践コラボレーション事例インデックス
@@ -61,8 +68,9 @@ harness/
             ├── evolution-protocol.md             # ハーネス進化/運用プロトコル
             ├── expansion-matrix.md               # 拡張時 Phase 選択マトリクス
             ├── schemas/                          # ランタイムスキーマ + エージェントテンプレート（SoT）
-            │   ├── models.md                     # ⚠️ モデル ID の正本 — ここだけ更新
-            │   ├── agent-worker.template.md      # ワーカーエージェント生成基準
+            │   ├── models.md                     # ⚠️ モデル ID 正本 + reasoning_effort ガイド
+            │   ├── agent-worker.template.toml    # ワーカーエージェント TOML 基準
+            │   ├── agent-state-manager.template.toml # 状態管理者 TOML 基準
             │   ├── agent-orchestrator.template.md # オーケストレータースキル生成基準
             │   ├── task.schema.json
             │   ├── checkpoint.schema.json
@@ -79,23 +87,21 @@ harness/
 
 ## 使い方
 
-スラッシュコマンドで直接呼び出し:
+まず Plan Mode を有効化してから自然言語で発話:
 
 ```
-/gemini-harness ハーネスを構築して
-/gemini-harness SSO認証プロジェクト用のハーネスを構築して
+/plan
+SSO認証プロジェクト用の codex ハーネスを構築して
 ```
-
-または自然言語発話でも自動トリガー:
 
 | 発話パターン | モード |
 |-------------|--------|
-| "ハーネスを構成/構築/設計して"、"{ドメイン}を自動化して" | 新規構築 |
+| "codex ハーネスを構成/構築/設計して"、"{ドメイン} codex 自動化を作って" | 新規構築 |
 | "既存のハーネスに{機能}を追加して"、"エージェントを追加" | 既存拡張 |
-| "ハーネスを点検/監査/現状確認"、"drift同期" | 運用/メンテナンス |
+| "ハーネスを点検/監査/現状確認"、"drift 同期" | 運用/メンテナンス |
 | "前の結果を再実行/修正/改善" | 運用（部分再実行） |
 
-> 新しいドメインを受け取ったら、まず `references/usage-examples.md` の 8 シナリオ（SSO・マイグレーション・コンテンツループ・並列リサーチ・障害分析・フルスタック・拡張・部分再実行）と照合してください。非トリガー発話表も提供しており、誤検知を防止します。
+> 新しいドメインを受け取ったら、まず `references/usage-examples.md` の 8 シナリオと照合してください。非トリガー発話表で誤検知を防止します。
 
 ## ワークフロー Phase
 
@@ -103,11 +109,11 @@ harness/
 |-------|------|
 | Phase 0 | 現状監査とモード分岐（新規/拡張/運用） |
 | Phase 1 | ドメイン分析とパターンマッチング（usage-examples.md シナリオ照合） |
-| Phase 2 | 仮想チーム設計 + ツール権限マッピング + アーキテクチャパターン選択 |
-| Phase 3 | サブエージェント定義生成（`.gemini/agents/{name}.md`） |
-| Phase 4 | 手順スキル生成（`.gemini/skills/{name}/SKILL.md`） |
+| Phase 2 | 仮想チーム設計 + sandbox_mode マッピング + アーキテクチャパターン選択 |
+| Phase 3 | エージェント TOML 生成（`.codex/agents/{name}.toml`） |
+| Phase 4 | オーケストレータースキル生成（`.agents/skills/{name}/SKILL.md`） |
 | Phase 5 | 統合とオーケストレーション（workflow.md・findings.md・tasks.md・checkpoint.json 初期化） |
-| Phase 6 | 検証とテスト（トリガー検証、Resume、Zero-Tolerance、GEMINI.md 登録） |
+| Phase 6 | 検証（トリガー検証、Resume、Zero-Tolerance、AGENTS.md 登録） |
 
 > 拡張・運用モードは `expansion-matrix.md` / `evolution-protocol.md` で必要な Phase のみ選択実行。
 
@@ -115,8 +121,9 @@ harness/
 
 ```
 {プロジェクト}/
-├── .gemini/
-│   ├── agents/{name}.md                # エージェント定義（role, tools, temperature）
+├── .codex/
+│   └── agents/{name}.toml              # エージェント定義（TOML: 役割、sandbox_mode、モデル）
+├── .agents/
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md                    # オーケストレータースキル
 │       └── references/schemas/         # スキーマコピー（必須同梱）
@@ -127,7 +134,7 @@ harness/
 │   ├── tasks.md                        # タスクボード
 │   ├── checkpoint.json                 # 再開地点（Durable Execution）
 │   └── tasks/task_{agent}_{id}.json    # エージェント別成果物メタ
-└── GEMINI.md                           # ハーネスポインター + 変更履歴
+└── AGENTS.md                           # ハーネスポインター + 変更履歴
 ```
 
 ## 7 パターン選択ガイド
@@ -144,9 +151,9 @@ harness/
 
 ## 参考ドキュメント
 
-- `skills/gemini-harness/SKILL.md` — メインスキル定義 + ワークフロー + 参考インデックス
+- `skills/codex-harness/SKILL.md` — メインスキル定義 + ワークフロー + 参考インデックス
 - `references/usage-examples.md` — 🚀 トリガー発話 8 種 + モードマッピング + 非トリガー発話 + Phase 適用マトリクス
-- `references/agent-design-patterns.md` — 7 パターン詳細、エージェント定義構造、ツールマッピング
+- `references/agent-design-patterns.md` — 7 パターン詳細、エージェント定義構造、sandbox_mode マッピング
 - `references/orchestrator-template.md` — オーケストレーター Step 0~5 疑似コード、checkpoint.json スキーマ
 - `references/orchestrator-procedures.md` — エラーハンドリング決定木、blocked_protocol、handle_handoff
 - `references/team-examples.md` — パターン別実践事例インデックス
@@ -156,8 +163,8 @@ harness/
 - `references/qa-agent-guide.md` — QA エージェント統合整合性検証
 - `references/evolution-protocol.md` — ハーネス進化、運用/メンテナンスワークフロー
 - `references/expansion-matrix.md` — 既存拡張 Phase 選択マトリクス
-- `references/schemas/models.md` — ⚠️ モデル ID 正本 — 新モデルリリース時にここだけ更新
-- `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — エージェント生成基準テンプレート
+- `references/schemas/models.md` — ⚠️ モデル ID 正本 + `model_reasoning_effort` 選択ガイド
+- `references/schemas/agent-worker.template.toml` · `agent-orchestrator.template.md` — エージェント生成基準テンプレート
 - `references/schemas/` — ランタイムスキーマ SoT（task・checkpoint・workflow・findings・tasks テンプレート）
 - `references/examples/full-bundle/sso-style.md` — 全成果物パッケージの正本例
 - `references/examples/team/` · `references/examples/step/` — パターン別・構造別の詳細例
