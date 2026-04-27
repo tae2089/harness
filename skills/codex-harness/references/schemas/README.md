@@ -37,4 +37,4 @@ Runtime schema definitions (single source of truth). At runtime, orchestrator St
 |----------------|----------------|
 | `agent-worker.template.md` (YAML frontmatter) | `agent-worker.template.toml` (TOML) |
 | `agent-state-manager.template.md` | (미포함 — Codex는 state 에이전트 선택적) |
-| Gemini 모델 ID (`gemini-*`) | OpenAI 모델 ID (`codex-1`, `o4-mini`) |
+| Gemini 모델 ID (`gemini-*`) | OpenAI 모델 ID (`gpt-5.2-thinking`, `gpt-5.3-codex`, `gpt-5.3-chat-latest`) |
