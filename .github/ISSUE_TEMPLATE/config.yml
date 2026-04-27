@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions — open-ended questions & RFCs
+    url: https://github.com/tae2089/harness/discussions
+    about: Prefer this for design discussions, ideas, "how should we think about X", and anything not yet actionable as an issue.

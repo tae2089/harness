@@ -1,0 +1,92 @@
+name: Bug report
+description: Report a defect in Harness (unexpected behavior, broken orchestration, schema validation failure, etc.)
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+assignees:
+  - tae2089
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Before submitting, please skim open issues to avoid duplicates.
+
+        **Triage SLA:** we aim to label new issues within 48h and respond substantively within 72h on business days.
+
+  - type: input
+    id: gemini-cli-version
+    attributes:
+      label: Gemini CLI version
+      description: Output of `gemini --version`
+      placeholder: "x.y.z"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: harness-phase
+    attributes:
+      label: Phase where the bug occurs
+      description: Which phase of the gemini-harness workflow triggered the issue?
+      options:
+        - "Phase 0 — 현황 감사 / 모드 분기"
+        - "Phase 1 — 도메인 분석 / 패턴 매칭"
+        - "Phase 2 — 가상 팀 설계"
+        - "Phase 3 — 에이전트 정의 생성"
+        - "Phase 4 — 절차 스킬 생성"
+        - "Phase 5 — 통합 / 오케스트레이션"
+        - "Phase 6 — 검증 / 테스트"
+        - "Runtime — Step 실행 루프 / checkpoint / task_*.json"
+        - "I don't know / N/A"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps to reproduce. Commands, config, and inputs please.
+      placeholder: |
+        1. `gemini skills install https://github.com/tae2089/harness.git --path skills`
+        2. "SSO 인증 하네스 구축해줘" 발화
+        3. Phase X에서 ...
+        4. observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages / stack traces verbatim.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - "macOS"
+        - "Linux"
+        - "Windows (WSL)"
+        - "Windows (native)"
+        - "Other (describe below)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context (optional)
+      description: Logs, screenshots, workflow.md / checkpoint.json snippets, or anything else that might help. Redact anything sensitive.
+    validations:
+      required: false
