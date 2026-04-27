@@ -1,6 +1,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/Codex_CLI-Skill-5C5C5C.svg" alt="Codex CLI Skill">
+  <img src="https://img.shields.io/badge/Gemini_CLI-Skill-4285F4.svg" alt="Gemini CLI Skill">
   <img src="https://img.shields.io/badge/Patterns-7_Architectures-orange.svg" alt="7 Architecture Patterns">
   <a href="https://github.com/tae2089/harness/stargazers"><img src="https://img.shields.io/github/stars/tae2089/harness?style=social" alt="GitHub Stars"></a>
 </p>
@@ -9,17 +10,24 @@
   <a href="#"><img src="https://img.shields.io/badge/README-EN%20%7C%20KO%20%7C%20JA-lightgrey" alt="i18n"></a>
 </p>
 
-# Harness — Subagent Orchestration Meta-Framework for OpenAI Codex CLI
+# Harness — Subagent Orchestration Meta-Framework
 
 **English** | [한국어](README_KO.md) | [日本語](README_JA.md)
 
-A meta-framework for designing specialist subagent teams in OpenAI Codex CLI. Generates agent TOML definitions, orchestrator skills, and all runtime scaffolding from a single natural-language description of your domain.
+A meta-framework for designing specialist subagent teams in AI coding agents. Generates agent definitions, orchestrator skills, and all runtime scaffolding from a single natural-language domain description.
 
-## Overview
+## Available Skills
 
-Harness is a meta-skill that builds domain-specific agent teams, defines each agent's role and sandbox permissions, and generates orchestrator skills with full runtime state management. Core outputs are `.codex/agents/{name}.toml`, `.agents/skills/{orchestrator}/SKILL.md`, and `AGENTS.md`. All runtime state is persisted in `_workspace/`.
+| Skill | CLI | Agent Definition | Skills Path |
+|-------|-----|-----------------|-------------|
+| `codex-harness` | OpenAI Codex CLI | `.codex/agents/{name}.toml` | `.agents/skills/` |
+| `gemini-harness` | Google Gemini CLI | `.gemini/agents/{name}.md` | `.gemini/skills/` |
 
-## Installation
+---
+
+## codex-harness (OpenAI Codex CLI)
+
+### Installation
 
 **Personal (global):**
 ```bash
@@ -34,90 +42,23 @@ cp -r harness/skills/codex-harness .agents/skills/
 
 After installation, say `"build a codex harness"` in a Codex CLI session to confirm `codex-harness` skill auto-triggers.
 
-> **First time?** Check [`references/usage-examples.md`](skills/codex-harness/references/usage-examples.md) first. 8 domain scenarios (SSO · migration · content loop · parallel research · incident analysis · full-stack · expansion · partial re-run) with trigger phrase mappings and a non-trigger table for false-positive prevention.
+> **First time?** Check [`references/usage-examples.md`](skills/codex-harness/references/usage-examples.md) first. 8 domain scenarios with trigger phrase mappings and a non-trigger table.
 
----
+### Core Principles (Codex CLI)
 
-## Core Principles
-
-- **7 Architecture Patterns:** Pipeline · Fan-out/Fan-in · Expert Pool · Producer-Reviewer · Supervisor · Hierarchical · Handoff. Composed via Stage (parent issue / Jira Issue) → Step (sub-issue / Jira Sub-issue) hierarchy.
-- **Naming Convention Enforcement:** Stage/Step names must be deliverable-noun kebab-case (`^[a-z][a-z0-9-]*$`). Placeholders like `main`, `step1`, `task` are blocked by workflow.md schema validation.
 - **sandbox_mode Permission Control:** Every agent requires an explicit `sandbox_mode`: `read-only` (Analyst/Architect) · `workspace-write` (Coder/Reviewer/QA) · `danger-full-access` (Operator/Deployer). No wildcard permissions.
-- **Main Agent as Single Broker:** Codex CLI has no direct inter-subagent communication API. All collaboration is brokered by the main agent via `_workspace/findings.md`, `tasks.md`, `checkpoint.json`, and `task_*.json`.
-- **3-Component Structure:** `.codex/agents/*.toml` + `.agents/skills/*/SKILL.md` + `AGENTS.md`.
 - **Plan Mode Required:** Activate with `/plan` or `Shift+Tab` before new builds and expansions.
-- **Zero-Tolerance Failure Protocol:** Arbitrary skipping is absolutely forbidden. Max 2 retries (3 total) → unresolved → `Blocked` + user confirmation.
+- **Main Agent as Single Broker:** No direct inter-subagent communication API. All collaboration brokered via `_workspace/`.
+- **3-Component Structure:** `.codex/agents/*.toml` + `.agents/skills/*/SKILL.md` + `AGENTS.md`.
 
-## Directory Structure
-
-```
-harness/
-└── skills/
-    └── codex-harness/
-        ├── SKILL.md                              # Main skill definition
-        └── references/
-            ├── usage-examples.md                 # 🚀 8 trigger phrases + mode mapping
-            ├── agent-design-patterns.md          # 7 patterns + sandbox_mode mapping
-            ├── orchestrator-template.md          # Orchestrator Step 0~5 pseudocode
-            ├── orchestrator-procedures.md        # Error handling · blocked · handoff procedures
-            ├── team-examples.md                  # Real-world collaboration case index
-            ├── stage-step-guide.md               # Stage-Step workflow specification
-            ├── skill-writing-guide.md            # Skill authoring guide
-            ├── skill-testing-guide.md            # Skill testing/validation guide
-            ├── qa-agent-guide.md                 # QA agent guide
-            ├── evolution-protocol.md             # Harness evolution/operations protocol
-            ├── expansion-matrix.md               # Phase selection matrix for expansion
-            ├── schemas/                          # Runtime schemas + agent templates (SoT)
-            │   ├── models.md                     # ⚠️ Model ID source of truth — update here only
-            │   ├── agent-worker.template.toml    # Worker agent TOML standard
-            │   ├── agent-state-manager.template.toml # State manager TOML standard
-            │   ├── agent-orchestrator.template.md # Orchestrator skill creation standard
-            │   ├── task.schema.json
-            │   ├── checkpoint.schema.json
-            │   ├── workflow.template.md
-            │   ├── findings.template.md
-            │   ├── tasks.template.md
-            │   └── README.md
-            └── examples/
-                ├── full-bundle/sso-style.md      # Full artifact package demo
-                ├── team/01~05-*.md               # 5 pattern-based collaboration examples
-                └── step/01~05-*.md               # 5 Stage-Step structure examples
-                    + test-scenarios.md           # Trigger validation scenarios
-```
-
-## Usage
-
-Activate Plan Mode first, then trigger naturally:
+### Usage
 
 ```
 /plan
 build a harness for an SSO authentication project
 ```
 
-| Phrase Pattern | Mode |
-|----------------|------|
-| "build/design/set up a codex harness", "automate {domain}" | New build |
-| "add {feature} to existing harness", "add agent" | Expansion |
-| "audit/inspect harness", "sync drift" | Operations/maintenance |
-| "re-run/fix/improve previous result" | Operations (partial re-run) |
-
-> On receiving a new domain, first match against the 8 scenarios in `references/usage-examples.md`. The non-trigger table prevents false positives.
-
-## Workflow Phases
-
-| Phase | Description |
-|-------|-------------|
-| Phase 0 | Audit current state and branch by mode (new / expand / operate) |
-| Phase 1 | Domain analysis and pattern matching (usage-examples.md scenario matching) |
-| Phase 2 | Virtual team design + sandbox_mode mapping + architecture pattern selection |
-| Phase 3 | Agent TOML generation (`.codex/agents/{name}.toml`) |
-| Phase 4 | Orchestrator skill generation (`.agents/skills/{name}/SKILL.md`) |
-| Phase 5 | Integration and orchestration (workflow.md · findings.md · tasks.md · checkpoint.json init) |
-| Phase 6 | Validation (trigger check, Resume, Zero-Tolerance, AGENTS.md registration) |
-
-> Expansion/operations modes use `expansion-matrix.md` / `evolution-protocol.md` to run only the required phases.
-
-## Generated Artifacts
+### Generated Artifacts
 
 ```
 {project}/
@@ -125,19 +66,88 @@ build a harness for an SSO authentication project
 │   └── agents/{name}.toml              # Agent definition (TOML: role, sandbox_mode, model)
 ├── .agents/
 │   └── skills/{orchestrator}/
-│       ├── SKILL.md                    # Orchestrator skill
-│       └── references/schemas/         # Schema copies (required bundle)
+│       ├── SKILL.md
+│       └── references/schemas/
 ├── _workspace/
-│   ├── _schemas/                       # Runtime schema copies (synced at Step 1.3)
-│   ├── workflow.md                     # Stage (parent issue) → Step (sub-issue) declaration
-│   ├── findings.md                     # Data broker
-│   ├── tasks.md                        # Task board
-│   ├── checkpoint.json                 # Resume point (Durable Execution)
-│   └── tasks/task_{agent}_{id}.json    # Per-agent artifact metadata
-└── AGENTS.md                           # Harness pointer + change history
+│   ├── workflow.md
+│   ├── findings.md
+│   ├── tasks.md
+│   ├── checkpoint.json
+│   └── tasks/task_{agent}_{id}.json
+└── AGENTS.md
 ```
 
-## 7 Pattern Selection Guide
+---
+
+## gemini-harness (Google Gemini CLI)
+
+### Installation
+
+```bash
+gemini skills install https://github.com/tae2089/harness.git --path skills
+```
+
+After installation, say `"build a harness"` in a Gemini CLI session to confirm `gemini-harness` skill auto-triggers.
+
+> **First time?** Check [`references/usage-examples.md`](skills/gemini-harness/references/usage-examples.md) first. 8 domain scenarios with trigger phrase mappings and a non-trigger table.
+
+### Core Principles (Gemini CLI)
+
+- **Strict Tool Permission Control:** `tools: ["*"]` is forbidden. All agents require `ask_user` and `activate_skill`. `invoke_agent` for orchestrators/supervisors only.
+- **Plan Mode Required:** Use `enter_plan_mode` before new builds and expansions (except yolo mode).
+- **Main Agent as Single Broker:** No `SendMessage`/`TeamCreate` API. All collaboration brokered via `_workspace/`.
+- **3-Component Structure:** `.gemini/agents/` + `.gemini/skills/` + `GEMINI.md`.
+
+### Usage
+
+```
+/gemini-harness build a harness for an SSO authentication project
+```
+
+Or trigger naturally:
+
+| Phrase Pattern | Mode |
+|----------------|------|
+| "build/design/set up a harness", "automate {domain}" | New build |
+| "add {feature} to existing harness", "add agent" | Expansion |
+| "audit/inspect harness", "sync drift" | Operations/maintenance |
+| "re-run/fix/improve previous result" | Operations (partial re-run) |
+
+### Generated Artifacts
+
+```
+{project}/
+├── .gemini/
+│   ├── agents/{name}.md                # Agent definition (role, tools, temperature)
+│   └── skills/{orchestrator}/
+│       ├── SKILL.md
+│       └── references/schemas/
+├── _workspace/
+│   ├── workflow.md
+│   ├── findings.md
+│   ├── tasks.md
+│   ├── checkpoint.json
+│   └── tasks/task_{agent}_{id}.json
+└── GEMINI.md
+```
+
+---
+
+## Shared: Core Concepts
+
+### Workflow Phases
+
+| Phase | Description |
+|-------|-------------|
+| Phase 0 | Audit current state and branch by mode (new / expand / operate) |
+| Phase 1 | Domain analysis and pattern matching (usage-examples.md scenario matching) |
+| Phase 2 | Virtual team design + permission mapping + architecture pattern selection |
+| Phase 3 | Agent definition generation |
+| Phase 4 | Orchestrator skill generation |
+| Phase 5 | Integration and orchestration (workflow.md · findings.md · tasks.md · checkpoint.json init) |
+| Phase 6 | Validation (trigger check, Resume, Zero-Tolerance, project manifest registration) |
+
+### 7 Pattern Selection Guide
 
 | Pattern | Best for |
 |---------|----------|
@@ -149,22 +159,78 @@ build a harness for an SSO authentication project
 | Hierarchical | 2-tier delegation: team lead → worker (heterogeneous domains) |
 | Handoff | Dynamic routing to next specialist based on analysis result |
 
+### Naming Convention
+
+Stage/Step names must be deliverable-noun kebab-case (`^[a-z][a-z0-9-]*$`). Placeholders like `main`, `step1`, `task` are blocked by workflow.md schema validation.
+
+### Zero-Tolerance Failure Protocol
+
+Arbitrary skipping is absolutely forbidden. Max 2 retries (3 total) → unresolved → `Blocked` + user confirmation.
+
+---
+
+## Directory Structure
+
+```
+harness/
+└── skills/
+    ├── codex-harness/
+    │   ├── SKILL.md
+    │   └── references/
+    │       ├── usage-examples.md
+    │       ├── agent-design-patterns.md
+    │       ├── orchestrator-template.md
+    │       ├── orchestrator-procedures.md
+    │       ├── team-examples.md
+    │       ├── stage-step-guide.md
+    │       ├── skill-writing-guide.md
+    │       ├── skill-testing-guide.md
+    │       ├── qa-agent-guide.md
+    │       ├── evolution-protocol.md
+    │       ├── expansion-matrix.md
+    │       ├── schemas/
+    │       │   ├── models.md                     # ⚠️ Model ID source of truth
+    │       │   ├── agent-worker.template.toml
+    │       │   ├── agent-state-manager.template.toml
+    │       │   ├── agent-orchestrator.template.md
+    │       │   ├── task.schema.json
+    │       │   ├── checkpoint.schema.json
+    │       │   ├── workflow.template.md
+    │       │   ├── findings.template.md
+    │       │   ├── tasks.template.md
+    │       │   └── README.md
+    │       └── examples/
+    │           ├── full-bundle/sso-style.md
+    │           ├── team/01~05-*.md
+    │           └── step/01~05-*.md
+    └── gemini-harness/
+        ├── SKILL.md
+        └── references/                           # Same structure as codex-harness
+```
+
 ## Reference Docs
 
+### codex-harness
 - `skills/codex-harness/SKILL.md` — Main skill definition + workflow + reference index
+- `references/schemas/models.md` — ⚠️ Model ID source of truth + `model_reasoning_effort` selection guide
+- `references/schemas/agent-worker.template.toml` · `agent-orchestrator.template.md` — Agent creation standard templates
+
+### gemini-harness
+- `skills/gemini-harness/SKILL.md` — Main skill definition + workflow + reference index
+- `references/schemas/models.md` — ⚠️ Model ID source of truth
+- `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — Agent creation standard templates
+
+### Shared References
 - `references/usage-examples.md` — 🚀 8 trigger phrases + mode mapping + non-trigger table + Phase matrix
-- `references/agent-design-patterns.md` — 7 patterns detail, agent definition structure, sandbox_mode mapping
+- `references/agent-design-patterns.md` — 7 patterns detail, agent definition structure, permission mapping
 - `references/orchestrator-template.md` — Orchestrator Step 0~5 pseudocode, checkpoint.json schema
 - `references/orchestrator-procedures.md` — Error handling decision tree, blocked_protocol, handle_handoff
 - `references/team-examples.md` — Pattern-based real-world case index
 - `references/stage-step-guide.md` — workflow.md specification, Stage/Step transition protocol
-- `references/skill-writing-guide.md` — Skill authoring patterns, data schema standards, flat-Step → Stage-Step migration
+- `references/skill-writing-guide.md` — Skill authoring patterns, data schema standards
 - `references/skill-testing-guide.md` — Trigger validation, Resume testing, Zero-Tolerance verification
 - `references/qa-agent-guide.md` — QA agent integration consistency verification
 - `references/evolution-protocol.md` — Harness evolution, operations/maintenance workflow
 - `references/expansion-matrix.md` — Phase selection matrix for existing expansion
-- `references/schemas/models.md` — ⚠️ Model ID source of truth + `model_reasoning_effort` selection guide
-- `references/schemas/agent-worker.template.toml` · `agent-orchestrator.template.md` — Agent creation standard templates
-- `references/schemas/` — Runtime schema SoT (task · checkpoint · workflow · findings · tasks templates)
 - `references/examples/full-bundle/sso-style.md` — Full artifact package canonical example
 - `references/examples/team/` · `references/examples/step/` — Pattern-based and structure-based detailed examples
