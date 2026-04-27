@@ -17,7 +17,7 @@
 #                          low          → State Manager / 단순 CRUD
 #                          medium       → Analyst / Researcher (조사·정리)
 #                          high         → Coder / Reviewer / QA (복잡 구현·디버깅)
-#                          extra-high   → Orchestrator / Architect (다단계 추론·계획)
+#                          xhigh   → Orchestrator / Architect (다단계 추론·계획)
 
 name = "{{AGENT_NAME}}"
 description = "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 이 에이전트 사용."

@@ -14,12 +14,12 @@ Codex 에이전트 템플릿에서 참조하는 **단일 모델 ID 정본**. 여
 
 ## model_reasoning_effort 선택 기준
 
-| 값           | 적합 에이전트               | 특징                                  |
-| ------------ | --------------------------- | ------------------------------------- |
-| `low`        | State Manager               | 단순 CRUD, 속도·비용 우선             |
-| `medium`     | Analyst, Researcher         | 조사·정리, 충분한 추론                |
-| `high`       | Coder, Reviewer, QA         | 복잡 구현·디버깅                      |
-| `extra-high` | Orchestrator, Architect     | 다단계 에이전트 추론·계획 (최고 비용) |
+| 값       | 적합 에이전트           | 특징                                  |
+| -------- | ----------------------- | ------------------------------------- |
+| `low`    | State Manager           | 단순 CRUD, 속도·비용 우선             |
+| `medium` | Analyst, Researcher     | 조사·정리, 충분한 추론                |
+| `high`   | Coder, Reviewer, QA     | 복잡 구현·디버깅                      |
+| `xhigh`  | Orchestrator, Architect | 다단계 에이전트 추론·계획 (최고 비용) |
 
 ## 갱신 프로토콜
 
