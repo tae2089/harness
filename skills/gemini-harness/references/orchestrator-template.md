@@ -206,6 +206,12 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 ⁷ **fan_out / fan_out_fan_in 에이전트 책임:** 병렬 에이전트 각자가 작업 완료 직후 `_workspace/tasks/task_{agent}_{id}.json`을 직접 작성한다(메인 에이전트가 대신 작성하지 않음). 메인 에이전트는 전체 완료 후 GLOB으로 파일을 수집하여 ATOMIC_WRITE로 통합한다.
 
+   **부분 실패 복구 (일부 에이전트 task 파일 미생성 시):**
+   1. GLOB 결과 파일 수 < 예상 에이전트 수 → 미생성 에이전트 식별 (active_agents에서 GLOB 결과 차집합).
+   2. 미생성 에이전트마다 Zero-Tolerance 재호출 (최대 2회 재시도, 총 3회).
+   3. 재시도 후에도 미생성 → `blocked_protocol(agent, task)` 호출 → HALT. 부분 결과로 강제 진행 절대 금지.
+   4. 모든 에이전트 task 파일 확인 후에만 ATOMIC_WRITE 수행.
+
 **종료 조건 검사 (`exit_cond` 유형별):**
 
 | Type | 종료 조건 형식 | 검사 방법 |
