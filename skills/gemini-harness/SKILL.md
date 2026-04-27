@@ -40,12 +40,14 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 ### Phase 1: 도메인 분석 및 패턴 매칭
 
+> **시작 전 필수:** `references/usage-examples.md` 시나리오 8종(SSO 구축·마이그레이션·콘텐츠 루프·병렬 리서치·장애 분석·풀스택 개발·Stage 추가·부분 재실행)과 사용자 발화를 매칭. 가까운 시나리오가 있으면 그 산출물·패턴·Stage 구조를 출발점으로 삼는다(복붙 금지, 도메인 변수만 치환).
+
 1. 사용자 요청에서 도메인/프로젝트 파악.
 2. 핵심 작업 유형 식별(생성, 분석, 검증, 편집, 배포 등).
 3. Phase 0 감사 결과를 기반으로 기존 에이전트/스킬과의 충돌·중복 분석.
 4. 프로젝트 코드베이스 탐색 — 기술 스택, 데이터 모델, 주요 모듈 파악.
 5. **사용자 숙련도 감지:** 대화의 맥락 단서(사용 용어, 질문 수준)로 기술 수준을 파악하고, 이후 커뮤니케이션 톤을 조절한다. 코딩 경험이 적은 사용자에게는 "assertion", "JSON schema", "브로커링" 같은 용어를 설명 없이 쓰지 않는다.
-6. **아키텍처 패턴 매칭:** 7대 패턴 중 최적 구조를 선택한다.
+6. **아키텍처 패턴 매칭:** 7대 패턴 중 최적 구조를 선택한다 (`references/agent-design-patterns.md` + `references/usage-examples.md` 시나리오 비교).
 
 ---
 
@@ -442,6 +444,7 @@ _workspace/
 
 ## 참고
 
+- **🚀 사용 사례 카탈로그 (트리거 발화 8종 + 모드 매핑 + 비트리거 발화):** `references/usage-examples.md` — 새 도메인을 받았을 때 가장 먼저 읽고 시나리오 매칭.
 - **7대 아키텍처 패턴 + 에이전트 정의 구조 + 도구 매핑:** `references/agent-design-patterns.md`
 - **오케스트레이터 고도화 템플릿** (Step 0~5 pseudocode, checkpoint.json 스키마, Split Task Schema): `references/orchestrator-template.md`
 - **오케스트레이터 절차 & 원칙** (에러 핸들링 결정트리, blocked_protocol, handle_handoff, description 키워드, 작성 원칙): `references/orchestrator-procedures.md`
