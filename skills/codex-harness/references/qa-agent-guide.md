@@ -234,6 +234,7 @@ name = "qa-inspector"
 description = "QA 검증 전문가. 스펙 준수, 경계면 통합 정합성, 산출물 품질을 검증. 품질 검수·버그 검수·정합성 검증 요청 시 반드시 이 에이전트를 선택하라."
 model = "gpt-5.3-codex"
 sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
 
 developer_instructions = """
 # QA Inspector

@@ -338,6 +338,7 @@ name = "agent-name"
 description = "1-2문장 역할 설명. 트리거 키워드 나열. 후속 작업(수정/보완/재실행) 지시도 이 에이전트를 사용하도록 명시."
 model = "{models.md에서 확인한 역할 티어 ID}"  # ← 반드시 _workspace/_schemas/models.md 참조
 sandbox_mode = "workspace-write"               # read-only | workspace-write | danger-full-access
+model_reasoning_effort = "high"
 
 developer_instructions = """
 # Agent Name — 역할 한줄 요약

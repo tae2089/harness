@@ -23,6 +23,7 @@ name = "frontend-team-lead"
 description = "프론트엔드 아키텍처 및 구현 전문가. UI 컴포넌트 설계와 상태 관리를 전담. 프론트엔드 구조 설계·구현·리팩토링 요청 시 반드시 이 에이전트를 선택."
 model = "gpt-5.3-codex"
 sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
 
 developer_instructions = """
 

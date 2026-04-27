@@ -18,6 +18,7 @@ name = "webtoon-reviewer"
 description = "웹툰 패널의 품질을 검수하는 전문가. 구도·캐릭터 일관성·텍스트 가독성·연출을 평가. 웹툰 QA·검수·재작업 요청 시 반드시 이 에이전트를 선택."
 model = "gpt-5.3-codex"
 sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
 
 developer_instructions = """
 
