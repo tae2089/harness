@@ -285,6 +285,8 @@ Codex CLI에서 확인된 특수 도구. 일반 워커 에이전트에는 부여
 > **중요:** 모델 ID를 코드에 직접 하드코딩하지 말 것. 항상 `_workspace/_schemas/models.md`를 shell `cat`로 확인 후 사용. OpenAI 모델 ID는 주기적으로 변경되며 잘못된 ID는 런타임 에러 발생.
 > **이유:** 워커는 범위 좁고 반복 호출 많음. codex 티어 = thinking 대비 속도·비용 우위. 오케스트레이터·Architect만 thinking.
 
+`model_reasoning_effort` 선택 기준 및 값 목록: `references/schemas/models.md` 참조 (`low` / `medium` / `high` / `extra-high`).
+
 ---
 
 ## 데이터 브로커링 (Data Brokering) 프로토콜
@@ -338,7 +340,7 @@ name = "agent-name"
 description = "1-2문장 역할 설명. 트리거 키워드 나열. 후속 작업(수정/보완/재실행) 지시도 이 에이전트를 사용하도록 명시."
 model = "{models.md에서 확인한 역할 티어 ID}"  # ← 반드시 _workspace/_schemas/models.md 참조
 sandbox_mode = "{{SANDBOX_MODE}}"              # read-only(Analyst/Architect) | workspace-write(Coder/Reviewer/QA) | danger-full-access(Operator)
-model_reasoning_effort = "high"
+model_reasoning_effort = "high"   # low(StateManager) | medium(Analyst/Researcher) | high(Coder/QA) | extra-high(Orchestrator/Architect)
 
 developer_instructions = """
 # Agent Name — 역할 한줄 요약
@@ -385,7 +387,7 @@ developer_instructions = """
 | 구분          | 스킬 (Skill)                                             | 에이전트 (Agent)                           |
 | ------------- | -------------------------------------------------------- | ------------------------------------------ |
 | **정의**      | 절차적 지식 + 도구 번들                                  | 전문가 페르소나 + 행동 원칙                |
-| **위치**      | `.codex/skills/{name}/SKILL.md`                          | `.codex/agents/{name}.toml`                |
+| **위치**      | `.agents/skills/{name}/SKILL.md`                          | `.codex/agents/{name}.toml`                |
 | **트리거**    | 사용자 요청 키워드 매칭으로 오케스트레이터 자동 선택 | 오케스트레이터가 `@{name}`으로 명시적 호출 |
 | **크기**      | 작은~큰 (워크플로우)                                     | 작은 (역할 정의)                           |
 | **용도**      | "**어떻게** 하는가"                                      | "**누가** 하는가"                          |
@@ -401,9 +403,9 @@ developer_instructions = """
 
 | 방식                   | 구현                                                                                 | 적합한 경우                                               |
 | ---------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| **스킬 파일 직접 로드** | 오케스트레이터가 `cat .codex/skills/{name}/SKILL.md`로 읽어 프롬프트에 주입          | 스킬이 독립 워크플로우이고 사용자가 직접 호출 가능한 경우 |
+| **스킬 파일 직접 로드** | 오케스트레이터가 `cat .agents/skills/{name}/SKILL.md`로 읽어 프롬프트에 주입          | 스킬이 독립 워크플로우이고 사용자가 직접 호출 가능한 경우 |
 | **프롬프트 내 인라인** | 에이전트 정의 본문에 스킬 내용을 직접 포함                                           | 스킬이 짧고(50줄 이하) 이 에이전트 **전용**인 경우        |
-| **레퍼런스 로드**      | shell `cat`로 `.codex/skills/{skill}/references/*.md`를 필요 시 로드                 | 스킬 내용이 크고 **조건부로만** 필요한 경우               |
+| **레퍼런스 로드**      | shell `cat`로 `.agents/skills/{skill}/references/*.md`를 필요 시 로드                 | 스킬 내용이 크고 **조건부로만** 필요한 경우               |
 
 **권장:**
 

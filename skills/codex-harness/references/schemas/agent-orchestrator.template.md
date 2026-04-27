@@ -1,5 +1,5 @@
 <!--
-ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.codex/skills/{harness-name}/SKILL.md`로 저장.
+ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.agents/skills/{harness-name}/SKILL.md`로 저장.
 오케스트레이터는 agent .md가 아닌 skill SKILL.md 형태로 생성된다.
 모델 ID SoT: references/schemas/models.md (변경 시 반드시 models.md 먼저 확인)
 

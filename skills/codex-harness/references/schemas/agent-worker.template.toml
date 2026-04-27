@@ -13,13 +13,18 @@
 #                          workspace-write   → Coder / Reviewer / QA / State Manager (파일 쓰기·테스트)
 #                          danger-full-access → Operator / Deployer (외부 프로세스 실행)
 #   {{MODEL}}            models.md 참조
+#   {{REASONING_EFFORT}} 복잡도 기준 선택:
+#                          low          → State Manager / 단순 CRUD
+#                          medium       → Analyst / Researcher (조사·정리)
+#                          high         → Coder / Reviewer / QA (복잡 구현·디버깅)
+#                          extra-high   → Orchestrator / Architect (다단계 추론·계획)
 
 name = "{{AGENT_NAME}}"
 description = "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 이 에이전트 사용."
 
 model = "{{MODEL}}"
 sandbox_mode = "{{SANDBOX_MODE}}"
-model_reasoning_effort = "high"
+model_reasoning_effort = "{{REASONING_EFFORT}}"
 
 developer_instructions = """
 당신은 {{DOMAIN}} 전문가입니다. {{ROLE_SUMMARY}}

@@ -167,12 +167,12 @@
 
 | 모드          | 실행 Phase                                                 | 핵심 산출물                                                                                                                                               |
 | ------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 신규 구축     | Phase 1 ~ Phase 6 (전체)                                   | `.codex/agents/*.toml`, `.codex/skills/{orchestrator}/SKILL.md`, `AGENTS.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
+| 신규 구축     | Phase 1 ~ Phase 6 (전체)                                   | `.codex/agents/*.toml`, `.agents/skills/{orchestrator}/SKILL.md`, `AGENTS.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
 | 기존 확장     | expansion-matrix.md 매트릭스로 결정 (보통 Phase 2·3·5·6-6) | 변경 대상 파일만 + `AGENTS.md` 변경 이력                                                                                                                  |
 | 운영/유지보수 | Phase 0 → evolution-protocol.md                            | 감사 보고서 + drift 정정                                                                                                                                  |
 | 부분 재실행   | Phase 0 (checkpoint 되감기) → Phase 2부터                  | 영향받는 산출물만                                                                                                                                         |
 
-> **공통 필수:** 모드 무관하게 (1) Plan Mode 진입(yolo 제외), (2) Phase 0 현황 감사, (3) Zero-Tolerance 실패 프로토콜(최대 2회 재시도(총 3회) → Blocked + 사용자 확인 요청), (4) Stage·Step 명명 컨벤션 검증.
+> **공통 필수:** 모드 무관하게 (1) **Plan Mode 진입** — `/plan` 또는 `Shift+Tab`, 복잡한 다단계 작업은 항상 Plan Mode 먼저, (2) Phase 0 현황 감사, (3) Zero-Tolerance 실패 프로토콜(최대 2회 재시도(총 3회) → Blocked + 사용자 확인 요청), (4) Stage·Step 명명 컨벤션 검증.
 
 ---
 

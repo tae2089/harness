@@ -10,7 +10,7 @@ description = "워크스페이스 상태 파일(checkpoint.json, task_*.json, fi
 
 model = "gpt-5.4-mini"
 sandbox_mode = "workspace-write"
-model_reasoning_effort = "high"
+model_reasoning_effort = "low"
 
 developer_instructions = """
 워크스페이스 상태 파일 CRUD 전담 에이전트. 오케스트레이터의 subagent spawn 호출만 처리. 사용자 확인 요청 금지 — 불명확 시 `ERROR:` 접두어 반환.

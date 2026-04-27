@@ -35,7 +35,7 @@
 ### 에이전트 정의 파일
 
 - 경로: `.codex/agents/{agent-name}.toml` (프로젝트) 또는 `~/.codex/agents/{agent-name}.toml` (사용자).
-- 필수 TOML 필드: `name`, `description`(pushy·후속 키워드 포함), `model`(오케스트레이터·Architect → `"gpt-5.5"`, 워커 → `"gpt-5.3-codex"`), `sandbox_mode`(역할별), `model_reasoning_effort = "high"`.
+- 필수 TOML 필드: `name`, `description`(pushy·후속 키워드 포함), `model`(실제 ID: `references/schemas/models.md` 확인), `sandbox_mode`(역할별), `model_reasoning_effort`(역할별: `low`·`medium`·`high`·`extra-high` — `references/schemas/models.md` 기준).
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Codex CLI), 에러 핸들링.
 
 ### findings.md 표준 섹션 구조
@@ -69,7 +69,7 @@
 
 ### 스킬 파일 구조
 
-- 경로: `.codex/skills/{skill-name}/SKILL.md`.
+- 경로: `.agents/skills/{skill-name}/SKILL.md`.
 - 대형 지식은 `references/`로 분리 (Progressive Disclosure).
 
 ### 오케스트레이터 스킬
