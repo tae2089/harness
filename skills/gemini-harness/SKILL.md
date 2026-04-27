@@ -411,6 +411,7 @@ _workspace/
 
 - [ ] `{프로젝트}/.gemini/agents/{name}.md` — **에이전트 정의 파일 필수 생성**. 각 파일에 `kind: local`, `model`(오케스트레이터·Architect → gemini-3.1-pro-preview, 워커 → gemini-3-flash-preview), 제한된 `tools`, `temperature`/`max_turns`, `ask_user`+`activate_skill` 포함.
 - [ ] `{프로젝트}/.gemini/skills/{name}/SKILL.md` — 스킬 파일들 (SKILL.md + 필요 시 `references/`·`scripts/`·`assets/`).
+- [ ] **신규 오케스트레이터 스킬 `references/schemas/` 5종 번들 필수** — `task.schema.json`·`checkpoint.schema.json`·`workflow.template.md`·`findings.template.md`·`tasks.template.md`. SoT(`gemini-harness/references/schemas/`)에서 그대로 복사. 런타임 Step 1.3가 `references/schemas/{file}`을 `read_file`로 읽음 — 누락 시 즉시 실패. (gemini-harness는 메타 스킬·런타임 활성화 안 됨.)
 - [ ] 오케스트레이터 스킬 1개 (Step 0 재실행 감지 + 데이터 흐름 + 에러 핸들링 + 테스트 시나리오 포함).
 - [ ] `_workspace/` 표준 경로 정의 — `_schemas/`(Step 1.3에서 `references/schemas/` 5종 `read_file`+`write_file` 쌍으로 동기화), `workflow.md`(Stage-Step 구조 선언), `findings.md`, `tasks.md`, `checkpoint.json`, `{plan_name}/`(실행 산출물), `tasks/task_{agent}_{id}.json`(에이전트별 상태 파일), `evals/{timestamp}/grading.json`.
 - [ ] `{프로젝트}/GEMINI.md` — 하네스 포인터(트리거 규칙 + 변경 이력) 등록.
