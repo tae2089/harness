@@ -278,10 +278,10 @@ _workspace/
   "agent": "@agent-name",
   "stage": "{current_stage}",
   "step": "{current_step}",
-  "status": "Todo | In-Progress | Done | Blocked",
+  "status": "todo | in-progress | done | blocked",
   "evidence": "검증 가능 술어 (예: '_workspace/sso/research.md 존재', 'go test ./... PASS')",
   "artifact": "_workspace/{plan_name}/{filename}",
-  "blocked_reason": "(status=Blocked일 때만) 차단 사유",
+  "blocked_reason": "(status=blocked일 때만) 차단 사유",
   "timestamp": "YYYYMMDD_HHMMSS"
 }
 ```

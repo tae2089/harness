@@ -29,12 +29,12 @@
     },
     "status": {
       "type": "string",
-      "enum": ["Todo", "In-Progress", "Done", "Blocked"],
-      "description": "Task state. Only worker writes Todo→In-Progress→Done. Blocked requires blocked_reason."
+      "enum": ["todo", "in-progress", "done", "blocked"],
+      "description": "Task state. Only worker writes todo→in-progress→done. Blocked requires blocked_reason."
     },
     "evidence": {
       "type": "string",
-      "description": "Verifiable predicate proving completion. Examples: 'go test ./... PASS', '_workspace/sso/research.md exists', 'verdict.json verdict=PASS'. Required when status=Done."
+      "description": "Verifiable predicate proving completion. Examples: 'go test ./... PASS', '_workspace/sso/research.md exists', 'verdict.json verdict=PASS'. Required when status=done."
     },
     "artifact": {
       "type": "string",
@@ -42,7 +42,7 @@
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required when status=Blocked. Concrete blocker description for ask_user routing."
+      "description": "Required when status=blocked. Concrete blocker description for ask_user routing."
     },
     "timestamp": {
       "type": "string",
@@ -57,11 +57,11 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "Done"}}},
+      "if": {"properties": {"status": {"const": "done"}}},
       "then": {"required": ["evidence", "artifact"]}
     },
     {
-      "if": {"properties": {"status": {"const": "Blocked"}}},
+      "if": {"properties": {"status": {"const": "blocked"}}},
       "then": {"required": ["blocked_reason"]}
     }
   ]

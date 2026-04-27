@@ -68,4 +68,4 @@ description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 
 
 ## 에러 핸들링
 
-Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도(총 3회) → 미해결 시 `task_*.json` status=Blocked + `ask_user`. 임의 Skip 절대 금지.
+Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도(총 3회) → 미해결 시 `task_*.json` status=blocked + `ask_user`. 임의 Skip 절대 금지.

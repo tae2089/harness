@@ -55,7 +55,7 @@ PROCEDURE handle_error(agent, task, error_type):
 // ── Blocked 프로토콜 (공통) ──────────────────────────────────────
 PROCEDURE blocked_protocol(agent, task):
     ATOMIC_WRITE "_workspace/tasks/task_{agent}_{id}.json":
-        status  ← "Blocked"
+        status  ← "blocked"
         result  ← null
         retries ← task.retries   // 최종값 보존
     RECORD findings.md ← "최종 반려: {사유} | 시도 이력: {이력}"

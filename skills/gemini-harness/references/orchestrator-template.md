@@ -170,7 +170,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    - `checkpoint.shared_variables.selected_expert` 읽기 → 실제 에이전트명으로 치환.
    - 필드 미존재 → `ask_user("expert_pool Step이 아직 실행되지 않았거나 selected_expert 미기록. 어떤 에이전트를 호출할까요?")` → RETURN.
    > 이 치환은 런타임에만 적용. workflow.md 파일 자체는 수정하지 않는다.
-5. **Pre-blocked 검사 (에이전트 호출 전 필수):** `_workspace/tasks/task_*.json` 중 `status=="Blocked" AND agent IN active_agents` → 발견 시 checkpoint `blocked` 갱신 → `ask_user` → RETURN. 에이전트 호출 절대 금지.
+5. **Pre-blocked 검사 (에이전트 호출 전 필수):** `_workspace/tasks/task_*.json` 중 `status=="blocked" AND agent IN active_agents` → 발견 시 checkpoint `blocked` 갱신 → `ask_user` → RETURN. 에이전트 호출 절대 금지.
 6. 출입 통제: `active_agents` 목록 외 에이전트 호출 금지.
 7. **findings.md 컨텍스트 주입:** 에이전트 호출 프롬프트에 `findings.md` 전체를 포함한다.
    ```
@@ -210,10 +210,10 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 | Type | 종료 조건 형식 | 검사 방법 |
 |------|----------------|-----------|
-| A | `task_*.json` 모두 `status=done` | GLOB → status 필드 전수 확인 |
+| A | `task_*.json` 모두 `status=done` | GLOB → status 필드 전수 확인 (`"done"` 소문자 — task.schema.json enum 기준) |
 | B | 특정 파일 존재 | `EXISTS(경로)` |
 | C | JSON 필드값 (예: `verdict=PASS`) | READ 파일 → 필드 비교 |
-| D | `iterations ≥ N` | `step_history[current_step].iterations` 비교 |
+| D | `iterations ≥ N` | `step_history` 배열에서 `stage==current_stage AND step==current_step`인 마지막 항목의 `.iterations` 비교 (배열 딕셔너리 접근 아님 — 선형 탐색) |
 
 **종료 조건 충족 시 — Step/Stage 전환:**
 
@@ -224,7 +224,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 **종료 조건 미충족 시:**
 
-1. `iterations < max_iterations` → `step_history[current_step].iterations++` → Step 2 루프 상단 재진입 (같은 Step 재실행).
+1. `iterations < max_iterations` → `step_history` 배열에서 `stage==current_stage AND step==current_step`인 항목 찾아 `.iterations` 증가(없으면 신규 추가) → Step 2 루프 상단 재진입 (같은 Step 재실행).
 2. 소진 → findings.md에 `"Step {current_step}: max_iterations 소진, 종료 조건 미충족"` 기록 → blocked_protocol. (상세: `references/orchestrator-procedures.md`)
 
 ---
@@ -241,14 +241,14 @@ WHILE retries < 3:
     CALL invoke_agent(@reviewer, prompt="@{위 파일} 검증. 결과를 task_{reviewer}_{id}.json에 기록.")
     READ "_workspace/tasks/task_{reviewer}_{id}.json" → review
 
-    IF review.status == "Done":  // PASS
+    IF review.status == "done":  // PASS
         ATOMIC_WRITE { tasks.md ← PASS evidence, checkpoint.json ← tasks_snapshot 갱신 }
         GOTO Step 4
 
     ELSE:  // FAIL
         retries += 1
         IF retries >= 3:
-            UPDATE tasks.md ← task "Blocked"
+            UPDATE tasks.md ← task "blocked"
             CALL ask_user("3회 후에도 검증 실패. 개입 요청.")
             RETURN
         WRITE findings.md["변경 요청"] ← review.evidence  // 피드백 주입 후 재시도
@@ -258,7 +258,7 @@ WHILE retries < 3:
 
 ### Step 4: 통합 및 최종 산출
 
-1. `GLOB "_workspace/tasks/task_*.json"` → `status=="Done"` 파일만 필터 → 각 파일의 `artifact_path` 추출 → `artifacts` 리스트 구성.
+1. `GLOB "_workspace/tasks/task_*.json"` → `status=="done"` 파일만 필터 → 각 파일의 `artifact_path` 추출 → `artifacts` 리스트 구성.
 2. findings.md의 `[데이터 충돌]` 섹션 확인 → 충돌 있으면 reviewer 에이전트 호출하여 해소. 미해소 시 `ask_user` → RETURN.
 3. `_workspace/{plan_name}/final_{output}.md` ← artifacts 병합(MERGE) 후 저장.
    > MERGE: 각 에이전트 산출물을 역할 순서대로 읽어 섹션별로 연결. 포맷은 도메인에 따라 결정 (마크다운: `## {에이전트명}\n{내용}` 연결, JSON: 키 병합, 코드: 파일 경로 목록).
@@ -339,14 +339,14 @@ tasks:     _workspace/{plan_name}/tasks.md
 {
   "agent": "@coder",
   "task_id": "T2",
-  "status": "Done",
+  "status": "done",
   "retries": 0,
   "evidence": "Reviewer PASS report: _workspace/plan/03_review.md",
   "artifact_path": "_workspace/plan/02_code.md"
 }
 ```
 
-> `status`: `"Done"` | `"Blocked"`. `retries ≥ 2` 시 Blocked 전환 (0·1 허용 = 총 3회).
+> `status`: `"done"` | `"blocked"`. `retries ≥ 2` 시 blocked 전환 (0·1 허용 = 총 3회).
 
 ## 절차 & 원칙
 
