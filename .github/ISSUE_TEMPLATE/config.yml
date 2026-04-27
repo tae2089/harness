@@ -3,3 +3,6 @@ contact_links:
   - name: GitHub Discussions — open-ended questions & RFCs
     url: https://github.com/tae2089/harness/discussions
     about: Prefer this for design discussions, ideas, "how should we think about X", and anything not yet actionable as an issue.
+  - name: Security disclosure (private)
+    url: https://github.com/tae2089/harness/security/advisories/new
+    about: Report security issues via GitHub Private Vulnerability Reporting. See SECURITY.md for scope and SLA.

@@ -53,7 +53,7 @@ Different kinds of contributions go through different entry points. Pick the one
 ### Security
 
 - Do **not** open a public issue for anything that could be abused.
-- Start a private thread in [GitHub Discussions](https://github.com/tae2089/harness/discussions) with title prefix `[harness-security]`.
+- Use GitHub's **Private Vulnerability Reporting** — see [`SECURITY.md`](./SECURITY.md) for the full policy and scope.
 - We aim to acknowledge within 7 days (see SLA table).
 
 ---
