@@ -11,14 +11,14 @@
 | @webtoon-artist   | Coder    | 패널 이미지 생성 | `ask_user`, `activate_skill`, `read_file`, `write_file`                        | `generate-webtoon`                    |
 | @webtoon-reviewer | Reviewer | 품질 검수        | `ask_user`, `activate_skill`, `read_file`, `write_file`, `glob`, `grep_search` | `review-webtoon`, `fix-webtoon-panel` |
 
-## 에이전트 파일 전문 예시: `.gemini/agents/webtoon-reviewer.md`
+## 에이전트 파일 전문 예시: `.codex/agents/webtoon-reviewer.md`
 
 ````markdown
 ---
 name: webtoon-reviewer
 description: "웹툰 패널의 품질을 검수하는 전문가. 구도·캐릭터 일관성·텍스트 가독성·연출을 평가. 웹툰 QA·검수·재작업 요청 시 반드시 이 에이전트를 선택."
 kind: local
-model: "gemini-3.1-pro-preview"
+model: "gpt-5.2-thinking"
 temperature: 0.2
 max_turns: 10
 tools:
@@ -63,7 +63,7 @@ tools:
 
 ```
 
-## 협업 프로토콜 (Gemini CLI)
+## 협업 프로토콜 (Codex CLI)
 
 - @webtoon-artist에게 직접 지시할 수 없다. 모든 수정 요청은
   `_workspace/{plan_name}/review_report.md`에 기록하며, 메인 에이전트가

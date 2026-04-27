@@ -130,7 +130,7 @@
     Step 1: vulnerability-scan   pattern=fan_out_fan_in
     Step 2: pen-test             pattern=pipeline
   ```
-- **GEMINI.md 변경 이력 기록 필수.**
+- **AGENTS.md 변경 이력 기록 필수.**
 - **참고:** `references/expansion-matrix.md` 케이스 D.
 
 ### 시나리오 H: 이전 분석 결과 부분 재실행 (운영/부분 재실행)
@@ -167,8 +167,8 @@
 
 | 모드 | 실행 Phase | 핵심 산출물 |
 |------|-----------|-------------|
-| 신규 구축 | Phase 1 ~ Phase 6 (전체) | `.gemini/agents/*.md`, `.gemini/skills/{orchestrator}/SKILL.md`, `GEMINI.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
-| 기존 확장 | expansion-matrix.md 매트릭스로 결정 (보통 Phase 2·3·5·6-6) | 변경 대상 파일만 + `GEMINI.md` 변경 이력 |
+| 신규 구축 | Phase 1 ~ Phase 6 (전체) | `.codex/agents/*.toml`, `.codex/skills/{orchestrator}/SKILL.md`, `AGENTS.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
+| 기존 확장 | expansion-matrix.md 매트릭스로 결정 (보통 Phase 2·3·5·6-6) | 변경 대상 파일만 + `AGENTS.md` 변경 이력 |
 | 운영/유지보수 | Phase 0 → evolution-protocol.md | 감사 보고서 + drift 정정 |
 | 부분 재실행 | Phase 0 (checkpoint 되감기) → Phase 2부터 | 영향받는 산출물만 |
 

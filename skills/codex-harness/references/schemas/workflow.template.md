@@ -16,7 +16,7 @@ Stage block required fields:
 
 Step (Task) block required fields:
 - 패턴:               pipeline | fan_out_fan_in | expert_pool | producer_reviewer | supervisor | hierarchical | handoff
-- 활성 에이전트:       [@name1, @name2, ...]   (must match .gemini/agents/{name}.md)
+- 활성 에이전트:       [@name1, @name2, ...]   (must match .codex/agents/{name}.toml)
 - 종료 조건:           VERIFIABLE PREDICATE (file exists / JSON field value / iterations ≥ N)
                       BANNED: "QA 승인", "충분히", "완료되면", "만족" (LLM 자의 해석)
 - 다음 step:          {next_step_name} | done

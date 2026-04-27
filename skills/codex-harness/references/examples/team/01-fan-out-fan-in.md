@@ -52,7 +52,7 @@ Phase 5: 사용자 보고, _workspace/ 보존
 
 ## 브로커 중개 패턴 (SendMessage 대체)
 
-Claude Code에서 `official → media → background`로 SendMessage가 오갔던 부분은 Gemini CLI에서 다음처럼 변환된다:
+Claude Code에서 `official → media → background`로 SendMessage가 오갔던 부분은 Codex CLI에서 다음처럼 변환된다:
 
 ```
 @official 산출물(_workspace/{plan_name}/01_official.md) 완료

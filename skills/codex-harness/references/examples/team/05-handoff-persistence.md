@@ -63,7 +63,7 @@ Phase 5: 사용자 보고, _workspace/ 보존
 ## 협업 프로토콜 예시: `@incident-triage.md`
 
 ```markdown
-## 핸드오프 가이드 (Gemini CLI)
+## 핸드오프 가이드 (Codex CLI)
 
 작업 완료 시 다음 규칙에 따라 전문가를 추천하라.
 

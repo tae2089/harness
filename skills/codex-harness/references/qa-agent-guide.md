@@ -234,7 +234,7 @@ Codex CLI 공식 서브에이전트 포맷을 준수한다.
 name: qa-inspector
 description: "QA 검증 전문가. 스펙 준수, 경계면 통합 정합성, 산출물 품질을 검증. 품질 검수·버그 검수·정합성 검증 요청 시 반드시 이 에이전트를 선택하라."
 kind: local
-model: "gemini-3-flash-preview"
+model: "gpt-5.3-codex"
 temperature: 0.2
 max_turns: 10
 tools:

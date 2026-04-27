@@ -1,5 +1,5 @@
 <!--
-ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.gemini/skills/{harness-name}/SKILL.md`로 저장.
+ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.codex/skills/{harness-name}/SKILL.md`로 저장.
 오케스트레이터는 agent .md가 아닌 skill SKILL.md 형태로 생성된다.
 모델 ID SoT: references/schemas/models.md (변경 시 반드시 models.md 먼저 확인)
 
@@ -10,8 +10,8 @@ ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.gemini/skills/{harness-name}
   {{AGENT_TABLE}}       가상 팀 테이블 행 (반복)
   {{STAGE_STEP_SUMMARY}} workflow.md Stage/Step 구조 요약
 
-오케스트레이터는 invoke_agent 권한 보유 — 워커 에이전트는 금지.
-모델은 pro 티어 사용 (복잡 추론·다단계 조율 담당).
+오케스트레이터만 subagent spawn 가능 — 워커 에이전트는 금지.
+모델은 thinking 티어 사용 (복잡 추론·다단계 조율 담당).
 -->
 
 ---
@@ -29,7 +29,7 @@ description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 
 | --------------- | ---- | ------ |
 | {{AGENT_TABLE}} |
 
-> 오케스트레이터 모델: `gemini-3.1-pro-preview` (설계·추론 담당). 모델 ID 확인: `references/schemas/models.md`
+> 오케스트레이터 모델: `gpt-5.2-thinking` (설계·추론 담당). 모델 ID 확인: `references/schemas/models.md`
 
 ## 워크플로우
 

@@ -2,17 +2,6 @@
 
 오케스트레이터는 메인 에이전트가 오케스트레이션 로직을 실행하기 위해 사용하는 상위 스킬이다. Codex CLI 환경은 **서브에이전트 간 직접 통신이 불가능**하므로, 메인 에이전트가 유일한 **Data Broker**로서 `findings.md`·`tasks.md`·`checkpoint.json`을 매개로 팀을 조율한다.
 
-> **Codex ↔ Gemini 대응표:**
-> | Gemini | Codex |
-> |--------|-------|
-> | `invoke_agent(@name, ...)` | subagent spawn (Codex 네이티브) |
-> | `read_file` | shell `cat` 또는 Codex 파일 읽기 |
-> | `write_file` / `ATOMIC_WRITE` | `apply_patch` (외과적 수정) |
-> | `ask_user` | approval prompt / 사용자 확인 |
-> | `activate_skill` | Codex 스킬 활성화 (`$skill-name`) |
-> | `.gemini/agents/{name}.md` (YAML) | `.codex/agents/{name}.toml` (TOML) |
-> | `GEMINI.md` | `AGENTS.md` |
-> | `tools: [ask_user, ...]` | `sandbox_mode = "..."` |
 
 > **주의:** 서브에이전트 호출은 Codex subagent spawn 사용. 병렬: 기본값. 순차: 스킬 지시로 단계 분리. 병렬 실행: `wait_for_previous: false`. 셸 백그라운드(dev server 등): `run_shell_command`. Claude Code와의 API 차이 상세(`TeamCreate`·`SendMessage`·`TaskCreate` 부재 이유): `references/agent-design-patterns.md` § "실행 모드: 오케스트레이션" 참조.
 

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gemini-harness/schemas/task.schema.json",
+  "$id": "https://codex-harness/schemas/task.schema.json",
   "title": "task_{agent}_{id}.json",
   "description": "Worker → Main agent atomic report. Workers write only their own file; main aggregates via GLOB.",
   "type": "object",
@@ -15,7 +15,7 @@
     "agent": {
       "type": "string",
       "pattern": "^@[a-zA-Z0-9_-]+$",
-      "description": "Calling agent name with @ prefix. Must match .gemini/agents/{name}.md filename."
+      "description": "Calling agent name with @ prefix. Must match .codex/agents/{name}.toml filename."
     },
     "stage": {
       "type": "string",

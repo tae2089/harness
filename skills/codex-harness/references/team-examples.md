@@ -35,7 +35,7 @@
 ### 에이전트 정의 파일
 
 - 경로: `.codex/agents/{agent-name}.md` (프로젝트) 또는 `~/.codex/agents/{agent-name}.md` (사용자).
-- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gemini-3.1-pro-preview"`, 워커 → `"gemini-3-flash-preview"` , `tools` (반드시 `ask_user`·`activate_skill` 포함).
+- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gpt-5.2-thinking"`, 워커 → `"gpt-5.3-codex"` , `tools` (반드시 `ask_user`·`activate_skill` 포함).
 - 권장 YAML: `temperature`(역할별 0.2~0.7), `max_turns`(5~20).
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Codex CLI), 에러 핸들링.
 
@@ -70,7 +70,7 @@
 
 ### 스킬 파일 구조
 
-- 경로: `.gemini/skills/{skill-name}/SKILL.md`.
+- 경로: `.codex/skills/{skill-name}/SKILL.md`.
 - 대형 지식은 `references/`로 분리 (Progressive Disclosure).
 
 ### 오케스트레이터 스킬
