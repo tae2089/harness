@@ -78,6 +78,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | `references/schemas/models.md` | `_workspace/_schemas/models.md` |
    | `references/schemas/agent-worker.template.md` | `_workspace/_schemas/agent-worker.template.md` |
    | `references/schemas/agent-orchestrator.template.md` | `_workspace/_schemas/agent-orchestrator.template.md` |
+   | `references/schemas/agent-state-manager.template.md` | `_workspace/_schemas/agent-state-manager.template.md` |
 
    > `README.md`·`models.md`·에이전트 템플릿은 에이전트 정의 생성 시 참조용 — 워크스페이스 사본은 생성 기준점으로 활용. `models.md`는 모델 ID SoT이므로 반드시 동기화.
    > **`run_shell_command("cp ...")` 금지** — 런타임 워킹 디렉터리(사용자 프로젝트 루트)에서 스킬 reference 경로는 셸로 도달 불가. 반드시 에이전트 도구 `read_file` + `write_file` 사용.
@@ -126,6 +127,8 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
   "last_updated":   "NOW()"
 }
 ```
+
+> **`@state-manager` 위임 패턴 (선택적):** 가상 팀에 `@state-manager`를 포함한 경우, 5~7번 단계(findings.md·tasks.md·checkpoint.json 초기화)와 Step 2의 모든 상태 갱신을 `invoke_agent(@state-manager, ...)` 로 위임한다. 오케스트레이터는 추론·조율에 집중, 상태 I/O는 `@state-manager`(flash 모델)가 스키마 검증 후 처리. 인터페이스: `OPERATION: state.init|checkpoint.update|task.upsert|findings.append|tasks.update|state.archive` + `PAYLOAD:` 블록. 상세 명세: `references/schemas/agent-state-manager.template.md`.
 
 > **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: {deliverable-name}`, `#### Step 1: {deliverable-name}`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
 > **파싱 예시:** `### Stage 1: sso-integration` → `current_stage = "sso-integration"` / `#### Step 1: requirements-gathering` → `current_step = "requirements-gathering"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
