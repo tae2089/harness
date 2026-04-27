@@ -69,13 +69,13 @@ Phase 1: findings.md 초기화: [공유 변수/경로]·[변경 요청]·[데이
          ① @project-architect 호출 → 전체 설계 _workspace/{plan_name}/00_architecture.md
            → findings.md [공유 변수/경로]에 프론트/백엔드 API 계약 요약
          ② architect 완료 후 설계 결과 기반으로 workflow.md 생성:
-           Stage 1: main / 사용자 승인 게이트: 없음
+           Stage 1: feature-development / 사용자 승인 게이트: 없음
            Step 1: design / 패턴: hierarchical / 활성 에이전트: [@frontend-team-lead, @backend-team-lead] / 다음 step: implement
            Step 2: implement / 패턴: hierarchical / 활성 에이전트: [@ui-designer, @state-engineer, @api-designer, @db-engineer] / 다음 step: done
-         ③ checkpoint.json 생성 (current_stage: "main", current_step: "design",
+         ③ checkpoint.json 생성 (current_stage: "feature-development", current_step: "design",
                             active_pattern: "hierarchical", status: "in_progress")
          tasks.md 초기화
-Phase 2: [Step 실행 루프 — Stage main / Step design]
+Phase 2: [Step 실행 루프 — Stage feature-development / Step design]
          @frontend-team-lead / @backend-team-lead를
          invoke_agent(wait_for_previous: false)로 배치 호출
          - 각 호출 프롬프트에 findings.md [공유 변수/경로]의 프론트/백엔드 API 계약 요약 주입
@@ -84,7 +84,7 @@ Phase 2: [Step 실행 루프 — Stage main / Step design]
          Step "design" 종료 조건 충족
          checkpoint.json 갱신: current_step → "implement", active_pattern → "hierarchical" (유지)
                             step_history에 "design" completed_at 기록, last_updated: 현재 타임스탬프
-Phase 3: [Step 실행 루프 — Stage main / Step implement]
+Phase 3: [Step 실행 루프 — Stage feature-development / Step implement]
          메인 에이전트가 tasks.md를 읽어 @ui-designer·@state-engineer·
          @api-designer·@db-engineer를 invoke_agent로 순차/병렬 호출
          (의존관계 없는 작업은 wait_for_previous: false로 병렬, 의존관계 있으면 순차)
@@ -92,10 +92,10 @@ Phase 3: [Step 실행 루프 — Stage main / Step implement]
          → 검수 실패 시 해당 에이전트 재호출 (최대 2회 재시도(총 3회))
          → 3회 후에도 실패 → Blocked, ask_user로 수동 개입 요청
          종료 조건: tasks.md의 모든 항목 상태 = Done + 각 팀 리드 검수 통과 → Step "implement" 충족
-         → stage "main" 완료 (Phase 4 교차 검증 후 최종 확정)
+         → stage "feature-development" 완료 (Phase 4 교차 검증 후 최종 확정)
 Phase 4: @project-architect가 최종 산출물을 교차 검증
          - 검증 통과 → checkpoint.json 갱신:
-           step_history에 "implement" completed_at, stage_history에 "main" completed_at
+           step_history에 "implement" completed_at, stage_history에 "feature-development" completed_at
            current_stage·current_step: "done", status: "completed", last_updated: 현재 타임스탬프
          - 검증 실패 → 실패 영역(프론트/백엔드)을 findings.md [변경 요청]에 기록 후 해당 팀 리드 재호출, 최대 2회 재시도(총 3회)
          - 재검증 후에도 실패 → Blocked, ask_user로 수동 판단 요청

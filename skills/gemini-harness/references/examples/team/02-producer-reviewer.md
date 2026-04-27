@@ -82,12 +82,12 @@ tools:
 Phase 0: (예시 1과 동일 — 상태 확인·Resume·신규 실행 분기)
 Phase 1: 사용자 입력(에피소드 명세) 분석
          workflow.md 생성:
-           Stage 1: main / 사용자 승인 게이트: 없음
+           Stage 1: webtoon-episode / 사용자 승인 게이트: 없음
            Step 1: produce / 패턴: producer_reviewer / 활성 에이전트: [@webtoon-artist, @webtoon-reviewer] / 다음 step: done
-         checkpoint.json 생성 (current_stage: "main", current_step: "produce",
+         checkpoint.json 생성 (current_stage: "webtoon-episode", current_step: "produce",
                             active_pattern: "producer_reviewer", status: "in_progress")
          tasks.md 패널 작업 등록, findings.md [공유 변수/경로]·[변경 요청] 초기화
-Phase 2: [Step 실행 루프 — Stage main / Step produce]
+Phase 2: [Step 실행 루프 — Stage webtoon-episode / Step produce]
          @webtoon-artist 호출 → _workspace/{plan_name}/panels/*.png 생성
          @webtoon-reviewer 호출 → _workspace/{plan_name}/review_report.md 생성
          메인 에이전트가 review_report.md 파싱:
@@ -99,7 +99,7 @@ Phase 2: [Step 실행 루프 — Stage main / Step produce]
 Phase 3: 최종 PASS 집계 → step "produce" 종료 조건 충족
          checkpoint.json 갱신:
            - step_history에 "produce" completed_at 기록
-           - stage_history에 "main" completed_at 기록
+           - stage_history에 "webtoon-episode" completed_at 기록
            - current_stage·current_step: "done", status: "completed", last_updated: 현재 타임스탬프
          사용자 승인 게이트: 없음 → 워크플로우 자동 완료
 Phase 4: 최종 에피소드 _workspace/{plan_name}/final/episode.md 생성

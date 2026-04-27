@@ -172,7 +172,7 @@ GEMINI.md 변경 이력: "아키텍처 Pipeline→Fan-out/Fan-in 변경 | 분석
 
 ### 케이스 D: 기존 Stage 1에 Stage 2(검증 스테이지) 추가
 
-**상황:** 현재 단일 Stage(main)로 실행 중인 하네스에 최종 사용자 검증 Stage를 추가해야 함.
+**상황:** 현재 단일 Stage(예: `sso-integration`)로 실행 중인 하네스에 최종 사용자 검증 Stage를 추가해야 함.
 
 ```
 classify_change → "Stage/Step 추가"
@@ -180,18 +180,18 @@ classify_change → "Stage/Step 추가"
 
 Phase 실행:
   Phase 2: workflow.md 재설계
-           - Stage 1: main (기존)
-           - Stage 2: validate (신규, 사용자 승인 게이트: "검증 결과 확인 후 완료 처리")
-           Stage 2 종료 조건·전환 프로토콜 정의
+           - Stage 1: sso-integration (기존, deliverable 명사구)
+           - Stage 2: user-validation (신규, 사용자 승인 게이트: "검증 결과 확인 후 완료 처리")
+           Stage 2 종료 조건·전환 프로토콜 정의 (이름은 kebab-case + deliverable 의미; `main`·`validate` 같은 generic placeholder 금지)
   Phase 3: @qa-validator 에이전트 추가 (신규 Stage 담당)
   Phase 4: validation-checklist 스킬 생성 (필요 시)
   Phase 5: 오케스트레이터 수정
            - Stage 2 실행 블록 추가
-           - checkpoint.json Stage 전환(main → validate) 로직 추가
+           - checkpoint.json Stage 전환(sso-integration → user-validation) 로직 추가
            - GEMINI.md 사용자 승인 게이트 명시
   Phase 6: Resume 흐름 테스트(Phase 6-6) 필수 — Stage 중간 중단 재개 시나리오
 
-GEMINI.md 변경 이력: "Stage 2(validate) 추가 | 사용자 검증 게이트 부재 피드백"
+GEMINI.md 변경 이력: "Stage 2(user-validation) 추가 | 사용자 검증 게이트 부재 피드백"
 ```
 
 ---

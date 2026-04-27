@@ -69,7 +69,17 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 - **계층적 위임 (Hierarchical):** 팀장 에이전트가 하위 에이전트에 재귀 위임(2단계 이내 권장).
 - **핸드오프 (Handoff):** 에이전트가 작업 완료 후 다음 전문가를 직접 추천하여 위임.
 
-**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 상위 이슈(Jira Issue/Story, deliverable)**, **Step = 하위 이슈(Jira Sub-issue) = Stage 안의 단일 작업 항목**(1 Step = 1 패턴). 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 사용자 승인 게이트는 상위 이슈(Stage) 단위. 상세: `references/stage-step-guide.md`.
+**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 상위 이슈(Jira Issue/Story, deliverable)**, **Step = 하위 이슈(Jira Sub-issue) = Stage 안의 단일 작업 항목**(1 Step = 1 패턴). 사용자 승인 게이트는 상위 이슈(Stage) 단위. 상세: `references/stage-step-guide.md`.
+
+> **[MANDATORY] 명명 규칙 — Jira 제목 컨벤션 강제.** Stage·Step 이름은 **deliverable 의미를 담은 명사구**여야 한다. Jira 이슈 제목과 동일한 기준 — 제목만 보고 무엇을 만드는지 식별 가능해야 한다.
+>
+> | 금지 (placeholder·일반어) | 허용 (deliverable 식별) |
+> |---------------------------|------------------------|
+> | `main`·`step1`·`task`·`work`·`default` | `sso-integration`·`payment-flow`·`onboarding-redesign` |
+> | `phase1`·`stage1`·`generic` | `requirements-gathering`·`api-design`·`load-test` |
+>
+> **단일 Stage·단일 Step 케이스도 동일 규칙 적용** — `main` 같은 placeholder 금지. 도메인 deliverable 이름 사용. 예: 단일 블로그 작성 → `Stage 1: blog-post` / `Step 1: draft-and-review` (≠ `main/main`).
+> 형식: `^[a-z][a-z0-9-]*$` (소문자 케밥 케이스, 숫자·하이픈 허용, 시작은 영문 소문자).
 
 > **[MANDATORY] workflow.md 스키마 강제 — 누락 시 Zero-Tolerance Failure.** 오케스트레이터 스킬을 작성할 때 절대 평면 "Step 1~N" 나열로 도피하지 말 것. 모든 Step 블록은 아래 6개 필드를 **빠짐없이** 포함해야 한다.
 >

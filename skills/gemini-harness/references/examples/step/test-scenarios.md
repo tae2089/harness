@@ -17,20 +17,20 @@
 
 ## 시나리오 1: 단순 워크플로우 workflow.md 구조 검증
 
-**목적:** 단순 작업 발화 시 `workflow.md`가 Stage 1개(`main`) + Step 1개(`main`) 구조로 올바르게 생성되는지 확인.
+**목적:** 단순 작업 발화 시 `workflow.md`가 Stage 1개 + Step 1개 구조로 생성되며 **deliverable 명사구 명명 규칙**(Jira 제목 컨벤션)을 따르는지 확인. `main`·`step1` 같은 placeholder는 위반.
 
 **테스트 프롬프트:** `"블로그 포스트를 3명이 병렬로 리서치하고 통합해줘"`
 
 **기대 동작:**
-- `_workspace/workflow.md` 생성 — Stage 1개(`main`), Step 1개(`main`), 패턴 = fan_out_fan_in, 활성 에이전트 목록 포함.
+- `_workspace/workflow.md` 생성 — Stage 1개(deliverable 명사구, 예: `blog-post`), Step 1개(deliverable 명사구, 예: `parallel-research`), 패턴 = fan_out_fan_in, 활성 에이전트 목록 포함.
 - Stage 2 블록 없음.
 
 **판정:**
 - `_workspace/workflow.md` 존재 → ✓
-- `### Stage 1: main` 블록 존재 → ✓
-- `#### Step 1: main` 블록 존재 + 활성 에이전트 목록 → ✓
+- `### Stage 1: {kebab-name}` 블록 존재 + 이름이 `^[a-z][a-z0-9-]*$` 일치 + placeholder(`main`·`step1`·`task`·`default`) 아님 → ✓
+- `#### Step 1: {kebab-name}` 블록 존재 + 위와 동일 규칙 + 활성 에이전트 목록 → ✓
 - Stage 2 블록 없음 → ✓
-- 넷 다 충족 시 PASS.
+- 넷 다 충족 시 PASS. placeholder 사용 시 FAIL.
 
 ---
 

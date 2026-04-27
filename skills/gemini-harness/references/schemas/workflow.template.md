@@ -2,6 +2,13 @@
 workflow.md schema — Stage(상위 이슈/Jira Issue) → Step(하위 이슈/Jira Sub-issue) hierarchy. Static declaration.
 MANDATORY fields per block (Zero-Tolerance: missing field → HALT).
 
+NAMING CONVENTION (Jira issue title style — MANDATORY):
+- Stage·Step name MUST be a deliverable-meaningful noun phrase in kebab-case.
+- Format: ^[a-z][a-z0-9-]*$  (lowercase letter start, digits/hyphens allowed)
+- BANNED placeholders: main, step1, task, work, default, phase1, stage1, generic
+- ALLOWED examples: sso-integration, payment-flow, requirements-gathering, api-design, load-test
+- Single-Stage / single-Step cases STILL follow this rule — no `main` shortcut.
+
 Stage block required fields:
 - 종료 조건:           "모든 step 완료" or verifiable predicate
 - 다음 stage:          {next_stage_name} | done

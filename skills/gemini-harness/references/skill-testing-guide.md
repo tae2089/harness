@@ -402,8 +402,8 @@ _workspace/{skill-name}/
 1. 사용자가 `{입력}`을 제공.
 2. 오케스트레이터 Step 0에서 `_workspace/` 미존재 확인 → 초기 실행 모드 선택.
 3. 오케스트레이터 Step 1에서 `workflow.md`·`tasks.md`·`findings.md` 초기화.
-   - `workflow.md`: Stage 1(`main`) / Step 1(`main`) / 활성 에이전트 목록 기록.
-   - `checkpoint.json`: `current_stage: "main"`, `current_step: "main"`, `active_pattern: {첫 step 패턴}`, `status: "in_progress"` 초기화.
+   - `workflow.md`: Stage 1(`{plan_name}` deliverable kebab-case) / Step 1(deliverable kebab-case) / 활성 에이전트 목록 기록. **placeholder(`main`) 금지** — Jira 제목 컨벤션.
+   - `checkpoint.json`: `current_stage: "{deliverable-kebab}"`, `current_step: "{deliverable-kebab}"`, `active_pattern: {첫 step 패턴}`, `status: "in_progress"` 초기화.
 4. 오케스트레이터 Step 2에서 [Step 실행 루프] — workflow.md의 현재 Step 에이전트 호출.
    - @analyst → @coder 순차 실행 (병렬 가능한 구간은 배치 호출).
 5. 오케스트레이터 Step 3에서 @reviewer 호출 → `findings.md` 충돌 없음 확인.

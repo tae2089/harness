@@ -19,13 +19,13 @@ Phase 1: ① @migration-supervisor 호출
            → 대상 파일 목록 수집 + 복잡도 추정 (파일 크기·import 수·의존성)
            → tasks.md에 N개 배치로 등록 (우선순위·복잡도 필드 포함; 순서는 오케스트레이터가 tasks.md 상태를 읽어 수동 제어)
          ② supervisor 완료 후 배치 수(N) 확정 → workflow.md 생성:
-           Stage 1: main / 사용자 승인 게이트: 없음
+           Stage 1: code-migration / 사용자 승인 게이트: 없음
            Step 1: migrate / 패턴: supervisor / 활성 에이전트: [@migrator-1~N] / 다음 step: test
            Step 2: test / 패턴: pipeline / 활성 에이전트: [메인] / 다음 step: done
-         ③ checkpoint.json 생성 (current_stage: "main", current_step: "migrate",
+         ③ checkpoint.json 생성 (current_stage: "code-migration", current_step: "migrate",
                             active_pattern: "supervisor", status: "in_progress")
          findings.md [공유 변수/경로]·[데이터 충돌] 초기화
-Phase 2: [Step 실행 루프 — Stage main / Step migrate]
+Phase 2: [Step 실행 루프 — Stage code-migration / Step migrate]
          메인 에이전트가 tasks.md를 읽어 가용 워커 수만큼 배치 할당
          - 단일 응답 턴에서 @migrator-1 / @migrator-2 / @migrator-3를
            invoke_agent(wait_for_previous: false)로 배치 호출
@@ -37,14 +37,14 @@ Phase 2: [Step 실행 루프 — Stage main / Step migrate]
          모든 배치 Done → step "migrate" 종료 조건 충족
          checkpoint.json 갱신: current_step → "test", active_pattern → "pipeline"
                             step_history에 "migrate" completed_at 기록, last_updated: 현재 타임스탬프
-Phase 3: [Step 실행 루프 — Stage main / Step test]
+Phase 3: [Step 실행 루프 — Stage code-migration / Step test]
          통합 테스트 실행 (run_shell_command)
          → 실패 시 영향 범위 분석 후 해당 배치만 재실행 (최대 2회 재시도(총 3회))
          → 3회 후에도 실패 → Blocked 처리, ask_user로 수동 대응 요청. 임의 완료 처리 금지.
-         step "test" 종료 조건 충족 → stage "main" 완료
+         step "test" 종료 조건 충족 → stage "code-migration" 완료
          checkpoint.json 갱신:
            - step_history에 "test" completed_at 기록
-           - stage_history에 "main" completed_at 기록
+           - stage_history에 "code-migration" completed_at 기록
            - current_stage·current_step: "done", status: "completed", last_updated: 현재 타임스탬프
 Phase 4: 마이그레이션 완료 보고서 _workspace/{plan_name}/final/migration_report.md 생성
 Phase 5: 사용자 보고, _workspace/ 보존

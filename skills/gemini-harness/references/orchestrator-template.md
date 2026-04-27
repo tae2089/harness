@@ -124,8 +124,9 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 }
 ```
 
-> **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: main`, `#### Step 1: main`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
-> **파싱 예시:** `### Stage 1: main` → `current_stage = "main"` / `#### Step 1: research` → `current_step = "research"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
+> **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: {deliverable-name}`, `#### Step 1: {deliverable-name}`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
+> **파싱 예시:** `### Stage 1: sso-integration` → `current_stage = "sso-integration"` / `#### Step 1: requirements-gathering` → `current_step = "requirements-gathering"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
+> **명명 규칙(필수):** `main`·`step1`·`task` 같은 placeholder 금지. kebab-case + deliverable 의미 명사구 (Jira 제목 컨벤션). 위반 시 workflow.md 스키마 검증에서 차단.
 
 8. **workflow.md 스키마 검증 (작성 직후 필수, 사이클 검증보다 먼저 실행):**
 
@@ -139,6 +140,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | `활성 에이전트` 형식 = `[@name, ...]` | 정규식 `\[(@\w[\w-]*\s*,?\s*)+\]` | `ask_user("활성 에이전트 형식 위반.")` → HALT |
    | **`종료 조건` 검증 가능 술어** | 키워드 화이트리스트: `task_*.json`·`status=done`·`존재`·`verdict=`·`score ≥`·`iterations ≥`. 화이트리스트 미매칭 + LLM 자의 해석 키워드(`승인`·`충분`·`완료되면`·`만족`·`적절히`) 발견 시 위반 | `ask_user("Step {name}의 종료 조건이 자연어다('{value}'). 검증 가능 술어로 재작성: 파일 존재·JSON 필드값·iteration ≥ N.")` → HALT |
    | 사용자 승인 게이트 누락 | Stage 블록에 명시 안 됨 | 동일 |
+   | **Stage·Step 명명 규칙 (Jira 제목 컨벤션)** | 헤더 이름 추출 → 정규식 `^[a-z][a-z0-9-]*$` 일치 + placeholder 블랙리스트(`main`·`step1`·`task`·`work`·`default`·`phase1`·`stage1`·`generic`) 미포함 | `ask_user("Stage/Step 이름 위반: '{name}'. kebab-case + deliverable 명사구로 재작성 (예: sso-integration, requirements-gathering). placeholder 금지.")` → HALT |
 
 9. **workflow.md 사이클 검증 (스키마 검증 통과 후):**
 
@@ -286,8 +288,8 @@ tasks:     _workspace/{plan_name}/tasks.md
 | `plan_name` | string | 실행 계획 식별자. | **필수** |
 | `status` | string | `"in_progress"` \| `"completed"` \| `"partial"` \| `"blocked"`. | **필수** |
 | `last_updated` | string | ISO 8601 타임스탬프. | **필수** |
-| `current_stage` | string | 현재 활성 stage. 단순 워크플로우는 `"main"`. | **필수** |
-| `current_step` | string | 현재 활성 step. 단순 워크플로우는 `"main"`. | **필수** |
+| `current_stage` | string | 현재 활성 stage 이름. **deliverable kebab-case 강제** (예: `"sso-integration"`); placeholder(`"main"` 등) 금지. | **필수** |
+| `current_step` | string | 현재 활성 step 이름. **deliverable kebab-case 강제** (예: `"requirements-gathering"`); placeholder(`"main"`·`"step1"` 등) 금지. | **필수** |
 | `active_pattern` | string | 현 step 실행 패턴 (예: `"pipeline"`). | 권장 |
 | `stage_history` | array | 완료 stage 기록. `started_at` + `completed_at` 포함. | 다단계 |
 | `step_history` | array | 완료 step 기록. `iterations` 포함. | 다단계 |

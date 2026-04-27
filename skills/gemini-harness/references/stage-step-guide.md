@@ -59,17 +59,19 @@
 
 ### 단순 워크플로우 예시 (stage 1 + step 1)
 
+> **명명 주의:** `main`·`step1` 같은 placeholder 금지. Stage·Step 이름은 deliverable 의미 담은 kebab-case (Jira 제목 컨벤션). 단일 Stage·단일 Step 케이스도 예외 없음.
+
 ```markdown
 <!-- 참고 패턴: fan_out_fan_in (실행에 영향 없음, 문서화 목적) -->
 
 ## Stage 정의
 
-### Stage 1: main
+### Stage 1: blog-post
 - 종료 조건: 모든 step 완료
 - 다음 stage: done
 - 사용자 승인 게이트: 없음
 
-#### Step 1: main
+#### Step 1: parallel-research
 - 패턴: fan_out_fan_in
 - 활성 에이전트: [@researcher-a, @researcher-b, @researcher-c]
 - 종료 조건: `_workspace/tasks/task_*.json` 모두 status=done
