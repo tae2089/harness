@@ -434,7 +434,7 @@ _workspace/
 - **오케스트레이터 고도화 템플릿** (Step 0~5 pseudocode, checkpoint.json 스키마, Split Task Schema): `references/orchestrator-template.md`
 - **오케스트레이터 절차 & 원칙** (에러 핸들링 결정트리, blocked_protocol, handle_handoff, description 키워드, 작성 원칙): `references/orchestrator-procedures.md`
 - **실전 협업 사례** (패턴 인덱스 + 패턴 선택 가이드 + 산출물 패턴 요약): `references/team-examples.md` / 각 예시 상세: `references/examples/team/01~05-*.md`
-- **스킬 작성 가이드** (작성 패턴, 예시, 데이터 스키마 표준): `references/skill-writing-guide.md`
+- **스킬 작성 가이드** (작성 패턴, 예시, 데이터 스키마 표준, 오케스트레이터 작성 규칙 §7-5, **평면 Step → Stage-Step 마이그레이션 §7-6**): `references/skill-writing-guide.md`
 - **스킬 테스트 가이드** (테스트/평가/트리거 검증/반복 개선): `references/skill-testing-guide.md`
 - **QA 에이전트 가이드** (통합 정합성 검증, 경계면 버그 패턴, 셸 백그라운드 활용, 실제 버그 7건 사례): `references/qa-agent-guide.md`
 - **하네스 진화 프로토콜** (피드백 반영, 변경 이력, 운영/유지보수 워크플로우): `references/evolution-protocol.md`
