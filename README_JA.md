@@ -156,7 +156,7 @@ harness/
 - `references/qa-agent-guide.md` — QA エージェント統合整合性検証
 - `references/evolution-protocol.md` — ハーネス進化、運用/メンテナンスワークフロー
 - `references/expansion-matrix.md` — 既存拡張 Phase 選択マトリクス
-- `references/schemas/models.md` — ⚠️ モデル ID 正本（`gemini models list` で確認後に更新）
+- `references/schemas/models.md` — ⚠️ モデル ID 正本 — 新モデルリリース時にここだけ更新
 - `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — エージェント生成基準テンプレート
 - `references/schemas/` — ランタイムスキーマ SoT（task・checkpoint・workflow・findings・tasks テンプレート）
 - `references/examples/full-bundle/sso-style.md` — 全成果物パッケージの正本例

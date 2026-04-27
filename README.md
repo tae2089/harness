@@ -156,7 +156,7 @@ Or trigger via natural language:
 - `references/qa-agent-guide.md` — QA agent integration consistency verification
 - `references/evolution-protocol.md` — Harness evolution, operations/maintenance workflow
 - `references/expansion-matrix.md` — Phase selection matrix for existing expansion
-- `references/schemas/models.md` — ⚠️ Model ID source of truth (verify with `gemini models list` before updating)
+- `references/schemas/models.md` — ⚠️ Model ID source of truth — update here when new models are released
 - `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — Agent creation standard templates
 - `references/schemas/` — Runtime schema SoT (task · checkpoint · workflow · findings · tasks templates)
 - `references/examples/full-bundle/sso-style.md` — Full artifact package canonical example

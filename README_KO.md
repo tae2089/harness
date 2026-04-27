@@ -156,7 +156,7 @@ harness/
 - `references/qa-agent-guide.md` — QA 에이전트 통합 정합성 검증
 - `references/evolution-protocol.md` — 하네스 진화, 운영/유지보수 워크플로우
 - `references/expansion-matrix.md` — 기존 확장 Phase 선택 매트릭스
-- `references/schemas/models.md` — ⚠️ 모델 ID 정본 (`gemini models list`로 확인 후 갱신)
+- `references/schemas/models.md` — ⚠️ 모델 ID 정본 — 신규 모델 출시 시 여기만 갱신
 - `references/schemas/agent-worker.template.md` · `agent-orchestrator.template.md` — 에이전트 생성 기준 템플릿
 - `references/schemas/` — 런타임 스키마 SoT (task·checkpoint·workflow·findings·tasks 템플릿)
 - `references/examples/full-bundle/sso-style.md` — 전체 산출물 패키지 정본 예시
