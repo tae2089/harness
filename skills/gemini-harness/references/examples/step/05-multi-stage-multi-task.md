@@ -1,15 +1,15 @@
-# 예시 5: 다중 Stage 다중 Task (제품 개발 라이프사이클)
+# 예시 5: 다중 Stage 다중 Step — 제품 개발 라이프사이클 (Jira Story × Sub-issue)
 
-작업(Stage) 3개, 각 Stage 내 Task(Step) 2~3개. 풀 라이프사이클 시연 — 발견·구현·검증 작업이 각자 다중 task로 분해되며 Stage 사이에는 사용자 승인 게이트 발동.
+상위 이슈(Stage) 3개, 각 Stage 내 하위 이슈(Step) 2~3개. 풀 라이프사이클 시연 — 발견·구현·검증 상위 이슈가 각자 다중 하위 이슈로 분해되며 Stage 사이에는 사용자 승인 게이트 발동.
 
 작업(Stage) 분해: `discovery`(발견 작업) → `build`(구현 작업) → `validate`(검증 작업).
-Step(=Task) 패턴: market-research=fan_out_fan_in, requirements=pipeline, design=pipeline, implement=supervisor, code-review=producer_reviewer, parallel-qa=fan_out_fan_in, release-notes=pipeline.
+Step(하위 이슈) 패턴: market-research=fan_out_fan_in, requirements=pipeline, design=pipeline, implement=supervisor, code-review=producer_reviewer, parallel-qa=fan_out_fan_in, release-notes=pipeline.
 
 ## workflow.md
 
 ```markdown
 <!-- 참고 패턴: discovery=fan_out+pipeline, build=pipeline+supervisor+producer_reviewer, validate=fan_out+pipeline -->
-<!-- Stage = 작업(Work). Step ≡ Task = 작업을 푸는 단위. -->
+<!-- Stage = 상위 이슈(Jira Issue). Step = 하위 이슈(Jira Sub-issue). -->
 
 ## Stage 정의
 
@@ -95,7 +95,7 @@ validate/release-notes:     @doc-writer: 모든 산출물 종합 → RELEASE_NOT
 
 ## 핵심 패턴 포인트
 
-**3 Stage × 7 Task**: 각 Stage(작업)가 자체 다중 task로 분해. Stage 사이 사용자 승인 게이트 2회(`discovery → build`, `build → validate`) 발동, Stage 내 Step 전환은 자동.
+**3 상위 이슈 × 7 하위 이슈**: 각 상위 이슈(Stage)가 자체 다중 하위 이슈(Step)로 분해. Stage 사이 사용자 승인 게이트 2회(`discovery → build`, `build → validate`) 발동, Stage 내 Step 전환은 자동.
 
 **패턴 7종 중 5종 사용**: fan_out_fan_in / pipeline / supervisor / producer_reviewer 결합 — 한 워크플로우에서 다양한 task 성격 표현. expert_pool·hierarchical·handoff는 미사용 (도메인상 부적합).
 

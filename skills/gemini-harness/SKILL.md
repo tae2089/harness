@@ -69,7 +69,7 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 - **계층적 위임 (Hierarchical):** 팀장 에이전트가 하위 에이전트에 재귀 위임(2단계 이내 권장).
 - **핸드오프 (Handoff):** 에이전트가 작업 완료 후 다음 전문가를 직접 추천하여 위임.
 
-**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 작업(Work, deliverable)**, **Step ≡ Task = 작업을 풀기 위한 한 단위**(1 Step = 1 Task = 1 패턴). 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 상세: `references/stage-step-guide.md`.
+**workflow.md (모든 하네스 필수):** 모든 하네스는 `_workspace/workflow.md`에 Stage-Step 구조를 선언한다. **Stage = 상위 이슈(Jira Issue/Story, deliverable)**, **Step = 하위 이슈(Jira Sub-issue) = Stage 안의 단일 작업 항목**(1 Step = 1 패턴). 단순 작업은 Stage·Step 각 1개(`main`), 다단계 작업은 2개 이상. 사용자 승인 게이트는 상위 이슈(Stage) 단위. 상세: `references/stage-step-guide.md`.
 
 > **[MANDATORY] workflow.md 스키마 강제 — 누락 시 Zero-Tolerance Failure.** 오케스트레이터 스킬을 작성할 때 절대 평면 "Step 1~N" 나열로 도피하지 말 것. 모든 Step 블록은 아래 6개 필드를 **빠짐없이** 포함해야 한다.
 >

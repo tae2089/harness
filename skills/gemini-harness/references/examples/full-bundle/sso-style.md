@@ -12,7 +12,7 @@
 - **작업(Stage) 분해:**
   - Stage 1: `research-plan` (요구사항 분석 + 설계, 작업 게이트 1회)
   - Stage 2: `develop-review` (구현 + QA 루프, 마지막 stage)
-- **Task(Step) 분해:**
+- **Step(하위 이슈) 분해:**
   - research-plan/research = pipeline (분석가 단독)
   - research-plan/plan = pipeline (설계가 단독)
   - develop-review/loop = producer_reviewer (개발자 ↔ QA)
@@ -72,7 +72,7 @@ Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도 → 미해결 시 
 
 ```markdown
 <!-- 참고 패턴: research-plan=pipeline, develop-review=producer_reviewer -->
-<!-- Stage = 작업(Work). Step ≡ Task. -->
+<!-- Stage = 상위 이슈(Jira Issue). Step = 하위 이슈(Jira Sub-issue). -->
 
 ## Stage 정의
 

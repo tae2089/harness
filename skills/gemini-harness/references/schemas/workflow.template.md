@@ -1,5 +1,5 @@
 <!--
-workflow.md schema — Stage(작업/Work) → Step(≡Task) hierarchy. Static declaration.
+workflow.md schema — Stage(상위 이슈/Jira Issue) → Step(하위 이슈/Jira Sub-issue) hierarchy. Static declaration.
 MANDATORY fields per block (Zero-Tolerance: missing field → HALT).
 
 Stage block required fields:

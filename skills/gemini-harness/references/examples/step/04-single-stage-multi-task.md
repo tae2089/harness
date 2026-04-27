@@ -1,14 +1,14 @@
-# 예시 4: 단일 Stage 다중 Task (조사 → 구현 → 리뷰)
+# 예시 4: 단일 Stage(상위 이슈) 다중 Step(하위 이슈) — 조사 → 구현 → 리뷰
 
-작업(Stage) 1개에 Task(Step) 3개를 두는 사례. **Step ≡ Task** 모델 시연: 하나의 작업 deliverable("기능 구현") 안에서 task별로 서로 다른 패턴 사용.
+상위 이슈(Stage) 1개에 하위 이슈(Step) 3개를 두는 사례. **Jira Issue → Sub-issue** 모델 시연: 하나의 deliverable("기능 구현") 상위 이슈 안에서 하위 이슈별로 서로 다른 패턴 사용.
 
-작업(Stage) 분해: `feature-build`(기능 구현 작업, 3 task). Step(=Task) 패턴: research=fan_out_fan_in, implement=pipeline, review=producer_reviewer.
+상위 이슈(Stage) 분해: `feature-build`(기능 구현, 하위 이슈 3개). Step(하위 이슈) 패턴: research=fan_out_fan_in, implement=pipeline, review=producer_reviewer.
 
 ## workflow.md
 
 ```markdown
 <!-- 참고 패턴: research=fan_out_fan_in, implement=pipeline, review=producer_reviewer -->
-<!-- Stage = 작업(Work). Step ≡ Task = 그 작업을 푸는 단위. -->
+<!-- Stage = 상위 이슈(Jira Issue). Step = 하위 이슈(Jira Sub-issue). -->
 
 ## Stage 정의
 
@@ -18,7 +18,7 @@
 - 사용자 승인 게이트: 없음 (단일 stage)
 
 #### Step 1: research
-<!-- Task: 라이브러리·API 자료 병렬 수집 -->
+<!-- 하위 이슈: 라이브러리·API 자료 병렬 수집 -->
 - 패턴: fan_out_fan_in
 - 활성 에이전트: [@api-researcher, @lib-researcher, @example-researcher]
 - 종료 조건: `_workspace/research/task_api.json`, `task_lib.json`, `task_example.json` 모두 status=done
@@ -26,7 +26,7 @@
 - 최대 반복 횟수: 1
 
 #### Step 2: implement
-<!-- Task: 조사 결과 기반 코드 구현 -->
+<!-- 하위 이슈: 조사 결과 기반 코드 구현 -->
 - 패턴: pipeline
 - 활성 에이전트: [@coder]
 - 종료 조건: `_workspace/build/feature.ts` 존재 + `_workspace/build/test.ts` 존재
@@ -34,7 +34,7 @@
 - 최대 반복 횟수: 1
 
 #### Step 3: review
-<!-- Task: 코드 리뷰 루프 (PASS 시 종료) -->
+<!-- 하위 이슈: 코드 리뷰 루프 (PASS 시 종료) -->
 - 패턴: producer_reviewer
 - 활성 에이전트: [@coder, @reviewer]
 - 종료 조건: `_workspace/build/review_verdict.json`의 verdict=PASS
@@ -56,8 +56,8 @@ feature-build/review:    @reviewer가 코드·테스트 검토 → review_verdic
 
 ## 핵심 패턴 포인트
 
-**1 Stage / 3 Task**: 하나의 작업 deliverable("기능 구현") 안에서 task가 성격별로 분해된다 — 조사(병렬)·구현(순차)·리뷰(루프). 각 Task가 독립 패턴을 갖되, Stage 게이트는 1회(전체 작업 완료 시점)만 발동.
+**1 상위 이슈 / 3 하위 이슈**: 하나의 deliverable("기능 구현") 상위 이슈 안에서 하위 이슈가 성격별로 분해된다 — 조사(병렬)·구현(순차)·리뷰(루프). 각 하위 이슈가 독립 패턴을 갖되, Stage 게이트는 1회(전체 상위 이슈 완료 시점)만 발동.
 
 **Step 자동 전환만 발생**: `feature-build` Stage 내 3 Step 모두 종료 조건 충족 시 사용자 개입 없이 자동 전진. Stage 끝(`다음 stage: done`)이라 Stage 승인 게이트도 없음 — 완전 자동 흐름.
 
-**패턴 다양성**: 한 Stage 안에서 fan_out_fan_in → pipeline → producer_reviewer가 순차 결합. Step≡Task 모델의 표현력 시연.
+**패턴 다양성**: 한 상위 이슈(Stage) 안에서 fan_out_fan_in → pipeline → producer_reviewer가 순차 결합. Jira Issue → Sub-issue 모델의 표현력 시연.

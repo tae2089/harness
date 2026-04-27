@@ -19,17 +19,22 @@
 
 ## 1. 개념 정의
 
-### 3단계 계층 모델 (Stage = Work, Step ≡ Task)
+### 3단계 계층 모델 (Stage = 상위 이슈, Step = 하위 이슈)
 
-모든 하네스는 **Stage → Step(≡Task) → Agent** 3단계 계층으로 구성된다.
+모든 하네스는 **Stage → Step → Agent** 3단계 계층으로 구성된다. **Jira의 이슈 계층(Issue → Sub-issue)을 직접 차용한다.**
 
-| 계층 | 의미 | 전환 주체 | 책임 |
-|------|------|---------|------|
-| **Stage** | **작업 (Work) = deliverable** | 사용자 승인 게이트 | 여러 Step(=Task)을 묶어 한 작업 완수. 승인 후에만 전환. |
-| **Step ≡ Task** | **Task = 작업을 풀기 위한 한 단위** | 오케스트레이터 자동 | **1 Step = 1 Task = 1 패턴**. 7대 패턴 중 1개 + 활성 에이전트 + 종료 조건 보유. 자동 전환. |
-| **Agent** | Task 실행자 | Step 내 호출 | 실제 작업 수행. step의 `활성 에이전트` 목록으로 출입 통제. |
+| 계층 | Jira 대응 | 의미 | 전환 주체 | 책임 |
+|------|-----------|------|---------|------|
+| **Stage** | **상위 이슈 (Issue / Story)** | deliverable 단위 작업 묶음 | 사용자 승인 게이트 | 여러 하위 이슈(Step)를 묶어 한 deliverable 완수. 승인 후에만 다음 Stage로 전환. |
+| **Step** | **하위 이슈 (Sub-issue)** | Stage 안의 단일 작업 항목 | 오케스트레이터 자동 | **1 Step = 1 패턴**. 7대 패턴 중 1개 + 활성 에이전트 + 종료 조건 보유. 자동 전환. |
+| **Agent** | 작업 담당자 | Step 실행자 | Step 내 호출 | 실제 작업 수행. Step의 `활성 에이전트` 목록으로 출입 통제. |
 
-> **핵심 의미론:** Stage는 "**작업(Work)**"이고, Step은 그 작업을 해결하기 위한 "**Task**"다. 두 용어(Step·Task)는 동의어로 취급한다 — workflow.md에서는 `Step` 키워드를 사용하되 의미상 Task임을 인지한다. 한 Stage 안의 Step들은 그 작업을 푸는 task 분해 결과다.
+> **핵심 의미론 (Jira 차용):** Stage는 **상위 이슈(parent issue)**, Step은 **하위 이슈(sub-issue)**다. Stage 자체는 직접 실행 단위가 아니며, 하위 이슈(Step)들이 모두 완료되어야 상위 이슈(Stage)가 종료된다. 사용자 승인 게이트는 상위 이슈(Stage) 단위 — Jira에서 Story를 Done 처리하기 전 PM 승인을 받는 흐름과 동일하다.
+
+> **워크플로우 ↔ Jira 매핑 예시:**
+> - Jira Story "결제 모듈 SSO 통합" = workflow.md의 한 Stage (`Stage 1: integrate-sso`)
+> - Jira Sub-issue "OAuth 콜백 핸들러 구현" = 그 Stage 안의 한 Step (`Step 2: implement-callback`)
+> - Sub-issue 담당자 = Step의 `활성 에이전트`
 
 `_workspace/workflow.md`에 Stage·Step 구조를 선언한다. 오케스트레이터는 항상 이 파일을 읽어 현재 stage와 step를 파악한다.
 
@@ -39,10 +44,10 @@
 
 ### 단순 vs 다단계
 
-| 유형 | Stage(작업) 수 | Step(Task) 수 | 사용 조건 |
-|------|---------|---------|----------|
-| **단순** | 1개(`main`) | 1개(`main`) | 단일 Task·단일 패턴으로 완결 |
-| **다단계** | 2개 이상 또는 한 Stage에 Step 2개 이상 | 복수 | 작업이 여러 Task로 분해됨 + 종료 조건 검증 가능 + 사용자가 Stage(작업) 게이트 개입 가능 |
+| 유형 | Stage(상위 이슈) 수 | Step(하위 이슈) 수 | 사용 조건 |
+|------|---------------------|--------------------|----------|
+| **단순** | 1개(`main`) | 1개(`main`) | 단일 하위 이슈·단일 패턴으로 완결 |
+| **다단계** | 2개 이상 또는 한 Stage에 Step 2개 이상 | 복수 | 상위 이슈가 여러 하위 이슈로 분해됨 + 종료 조건 검증 가능 + 사용자가 상위 이슈(Stage) 게이트 개입 가능 |
 
 ---
 
@@ -203,7 +208,7 @@ invoke_agent 호출 전 확인:
 
 ## 7. 워크플로우 예시 5종
 
-| # | 도메인 | 패턴 조합 | Stage(작업) 수 | Step(Task) 수 | 파일 |
+| # | 도메인 | 패턴 조합 | Stage(상위 이슈) 수 | Step(하위 이슈) 수 | 파일 |
 |---|--------|----------|---------|---------|------|
 | 1 | 블로그 포스트 작성 | gather=fan_out_fan_in → write=producer_reviewer | 2 | 2 | [examples/step/01-blog-post.md](examples/step/01-blog-post.md) |
 | 2 | 이슈 트리아지 | triage=(expert_pool+pipeline) → review=producer_reviewer | 2 | 3 | [examples/step/02-issue-triage.md](examples/step/02-issue-triage.md) |
