@@ -73,24 +73,24 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 > **[MANDATORY] 명명 규칙 — Jira 제목 컨벤션 강제.** Stage·Step 이름은 **deliverable 의미를 담은 명사구**여야 한다. Jira 이슈 제목과 동일한 기준 — 제목만 보고 무엇을 만드는지 식별 가능해야 한다.
 >
-> | 금지 (placeholder·일반어) | 허용 (deliverable 식별) |
-> |---------------------------|------------------------|
+> | 금지 (placeholder·일반어)              | 허용 (deliverable 식별)                                |
+> | -------------------------------------- | ------------------------------------------------------ |
 > | `main`·`step1`·`task`·`work`·`default` | `sso-integration`·`payment-flow`·`onboarding-redesign` |
-> | `phase1`·`stage1`·`generic` | `requirements-gathering`·`api-design`·`load-test` |
+> | `phase1`·`stage1`·`generic`            | `requirements-gathering`·`api-design`·`load-test`      |
 >
 > **단일 Stage·단일 Step 케이스도 동일 규칙 적용** — `main` 같은 placeholder 금지. 도메인 deliverable 이름 사용. 예: 단일 블로그 작성 → `Stage 1: blog-post` / `Step 1: draft-and-review` (≠ `main/main`).
 > 형식: `^[a-z][a-z0-9-]*$` (소문자 케밥 케이스, 숫자·하이픈 허용, 시작은 영문 소문자).
 
 > **[MANDATORY] workflow.md 스키마 강제 — 누락 시 Zero-Tolerance Failure.** 오케스트레이터 스킬을 작성할 때 절대 평면 "Step 1~N" 나열로 도피하지 말 것. 모든 Step 블록은 아래 6개 필드를 **빠짐없이** 포함해야 한다.
 >
-> | 필수 필드 | 형식 | 자연어 금지 |
-> |---|---|---|
-> | `패턴` | 7대 패턴 중 1개 (`pipeline`·`fan_out_fan_in` 등) | "순차 진행" 같은 임의 표기 금지 |
-> | `활성 에이전트` | `[@name1, @name2]` 형식 | 에이전트명 누락·자유 텍스트 금지 |
-> | `종료 조건` | **검증 가능 술어** (파일 존재·`task_*.json` status=done·JSON 필드값·iteration ≥ N) | "QA 승인", "충분히 모였다", "완료되면" 같은 LLM 자의 해석 표현 **차단** |
-> | `다음 step` | 같은 Stage 내 step 이름 또는 `done` | 누락 금지 |
-> | `최대 반복 횟수` | 정수 (비루프=1, 루프 ≤3) | 누락 금지 |
-> | Stage `사용자 승인 게이트` | `필요` 또는 `없음 (마지막 stage)` | 명시 누락 금지 |
+> | 필수 필드                  | 형식                                                                               | 자연어 금지                                                             |
+> | -------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+> | `패턴`                     | 7대 패턴 중 1개 (`pipeline`·`fan_out_fan_in` 등)                                   | "순차 진행" 같은 임의 표기 금지                                         |
+> | `활성 에이전트`            | `[@name1, @name2]` 형식                                                            | 에이전트명 누락·자유 텍스트 금지                                        |
+> | `종료 조건`                | **검증 가능 술어** (파일 존재·`task_*.json` status=done·JSON 필드값·iteration ≥ N) | "QA 승인", "충분히 모였다", "완료되면" 같은 LLM 자의 해석 표현 **차단** |
+> | `다음 step`                | 같은 Stage 내 step 이름 또는 `done`                                                | 누락 금지                                                               |
+> | `최대 반복 횟수`           | 정수 (비루프=1, 루프 ≤3)                                                           | 누락 금지                                                               |
+> | Stage `사용자 승인 게이트` | `필요` 또는 `없음 (마지막 stage)`                                                  | 명시 누락 금지                                                          |
 >
 > 자연어 종료 조건이 작성되면 **즉시 거부**하고 검증 가능 술어로 재작성. drift 처리: `references/expansion-matrix.md`의 "drift 처리 가이드" 참조.
 
@@ -155,13 +155,14 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 4. **재호출 지침:** 각 에이전트 정의에 "이전 산출물이 있을 때의 행동"을 명시한다(이전 결과 파일 읽고 개선점 반영, 사용자 피드백이 주어지면 해당 부분만 수정).
 
-5. **시스템 등록 (필수, 사용자 수동 실행):** 에이전트 파일(`.md`) 생성 및 수정 완료 후, **사용자에게 `/agents reload` 슬래시 커맨드 실행을 요청한다.** `/agents reload`는 Gemini CLI 내부 슬래시 커맨드로, `run_shell_command`(bash) 또는 `invoke_agent`로 실행할 수 없다 — 반드시 사용자가 Gemini CLI 프롬프트에서 직접 입력해야 시스템 레지스트리에 반영된다. 메인 에이전트는 다음 형식으로 알린다:
+5. **시스템 등록 (필수, 사용자 수동 실행):** 에이전트 파일(`.md`) 생성 및 수정 완료 후, 사용자에게 `/agents reload`와 `/skills reload`를 진행시킨다. reload는 Gemini CLI 내부에서만 가능하다. — 반드시 사용자가 Gemini CLI 프롬프트에서 직접 입력해야 시스템 레지스트리에 반영된다. 메인 에이전트는 다음 형식으로 알린다:
    ```
    에이전트 파일 작성 완료: {agent-1}, {agent-2}, ...
-   다음 작업을 위해 Gemini CLI 프롬프트에 `/agents reload`를 직접 입력해 주세요.
+   skill 파일 작성 완료: {skill-1}, {skill-2}, ...
+   다음 작업을 위해 Gemini CLI 프롬프트에 `/agents reload`와 `/skills reload`를 직접 입력해 주세요.
    완료되면 "리로드 완료" 등으로 알려주시면 이어서 진행하겠습니다.
    ```
-   리로드 확인 응답을 받기 전까지는 새 에이전트를 호출(`invoke_agent`)하지 않는다 — 호출 시 등록 누락으로 실패한다.
+   리로드 확인 응답을 받기 전까지는 새 에이전트를 호출(`invoke_agent`)과 스킬을 호출(`activate_skill`)하지 않는다 — 호출 시 등록 누락으로 실패한다.
 
 > 템플릿과 실제 파일 전문은 `references/agent-design-patterns.md`의 "에이전트 정의 구조" + `references/examples/team/` 참조.
 
@@ -226,16 +227,16 @@ description: "하네스를 구성합니다. 전문 서브에이전트 팀과 협
 
 오케스트레이터 내에 에이전트 간 데이터 전달 방식을 명시한다. **Gemini CLI는 서브에이전트 간 직접 통신 API가 없으므로**, 모든 에이전트 간 정보 흐름은 아래 5종 파일 매개로 메인 에이전트가 중개한다.
 
-| 전략                          | 방식                                                                            | 적합한 경우                               |
-| ----------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
-| **파일 기반 산출물 (기본)**   | `_workspace/{plan_name}/`에 워커가 직접 산출물 기록                             | 대용량 데이터, 구조화된 산출물, 감사 추적 |
-| **findings.md 브로커링**      | 메인이 산출물을 읽어 요약을 `findings.md`에 기록, 다음 에이전트 프롬프트에 주입 | 에이전트 간 통찰 공유, 상충 중재          |
-| **task_\*.json (워커 보고)**  | 워커가 `_workspace/tasks/task_{agent}_{id}.json`을 **자기 것만 작성** → 메인이 GLOB 수집 후 tasks.md 원자적 통합 | **병렬 에이전트 race condition 회피** (워커는 tasks.md 직접 쓰기 금지) |
-| **tasks.md 태스크 보드**      | 메인 단독 갱신. Todo / In-Progress / Done / Blocked 상태                        | 진행 추적, 감독자 패턴의 동적 할당        |
-| **checkpoint.json**           | 메인 단독 갱신. 마지막 성공 지점·공유 변수·current_stage·current_step           | Durable Execution (중단 시 재개)          |
-| **반환 메시지**               | 서브에이전트가 최종 답을 반환                                                   | 짧은 결과, 단발성 조회                    |
+| 전략                          | 방식                                                                                                             | 적합한 경우                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **파일 기반 산출물 (기본)**   | `_workspace/{plan_name}/`에 워커가 직접 산출물 기록                                                              | 대용량 데이터, 구조화된 산출물, 감사 추적                              |
+| **findings.md 브로커링**      | 메인이 산출물을 읽어 요약을 `findings.md`에 기록, 다음 에이전트 프롬프트에 주입                                  | 에이전트 간 통찰 공유, 상충 중재                                       |
+| **task\_\*.json (워커 보고)** | 워커가 `_workspace/tasks/task_{agent}_{id}.json`을 **자기 것만 작성** → 메인이 GLOB 수집 후 tasks.md 원자적 통합 | **병렬 에이전트 race condition 회피** (워커는 tasks.md 직접 쓰기 금지) |
+| **tasks.md 태스크 보드**      | 메인 단독 갱신. Todo / In-Progress / Done / Blocked 상태                                                         | 진행 추적, 감독자 패턴의 동적 할당                                     |
+| **checkpoint.json**           | 메인 단독 갱신. 마지막 성공 지점·공유 변수·current_stage·current_step                                            | Durable Execution (중단 시 재개)                                       |
+| **반환 메시지**               | 서브에이전트가 최종 답을 반환                                                                                    | 짧은 결과, 단발성 조회                                                 |
 
-**권장 조합:** 파일 기반 산출물 + findings.md(통찰 중개) + task_\*.json(워커 보고) + tasks.md(진행 보드) + checkpoint.json(영속성) 5종 모두 활용.
+**권장 조합:** 파일 기반 산출물 + findings.md(통찰 중개) + task\_\*.json(워커 보고) + tasks.md(진행 보드) + checkpoint.json(영속성) 5종 모두 활용.
 
 ##### 산출물 관리 계층 (읽기/쓰기 권한 매트릭스)
 
@@ -260,23 +261,24 @@ _workspace/
 **`_schemas/` 자기 검증 워크스페이스:** Step 1.3에서 스킬 `references/schemas/` 5종(`task.schema.json`·`checkpoint.schema.json`·`workflow.template.md`·`findings.template.md`·`tasks.template.md`)을 `read_file` → `write_file` 쌍으로 `_workspace/_schemas/`에 작성(**셸 `cp` 금지** — 런타임 워킹 디렉터리에서 스킬 reference 경로는 셸 도달 불가, 반드시 에이전트 도구 사용). 워커는 자기 `task_*.json` 작성 전 `_workspace/_schemas/task.schema.json` 읽고 형식 맞춤. 메인은 `task_*.json`·`checkpoint.json` 갱신 시 매번 스키마 검증. 스킬 갱신 시 다음 init부터 적용 — 진행 중 워크스페이스 스냅샷은 보존. SoT: `references/schemas/`.
 
 **핵심 규칙:**
+
 - **워커는 `tasks.md`·`findings.md`·`checkpoint.json` 절대 직접 수정 금지** — 병렬 호출 시 race condition으로 데이터 손실.
 - **메인은 `task_*.json` 직접 작성 금지** — 워커가 자기 작업 완료 후 자기 파일만 작성.
 - **메인의 통합 흐름:** `GLOB("_workspace/tasks/task_*.json")` → 모두 읽기 → tasks.md ATOMIC_WRITE 갱신 + findings.md 요약 갱신 + checkpoint.json 갱신.
 
-##### task_*.json 스키마 (워커 → 메인 보고 표준)
+##### task\_\*.json 스키마 (워커 → 메인 보고 표준)
 
 ```json
 {
-  "id":         "task_{agent}_{seq}",
-  "agent":      "@agent-name",
-  "stage":      "{current_stage}",
-  "step":       "{current_step}",
-  "status":     "Todo | In-Progress | Done | Blocked",
-  "evidence":   "검증 가능 술어 (예: '_workspace/sso/research.md 존재', 'go test ./... PASS')",
-  "artifact":   "_workspace/{plan_name}/{filename}",
+  "id": "task_{agent}_{seq}",
+  "agent": "@agent-name",
+  "stage": "{current_stage}",
+  "step": "{current_step}",
+  "status": "Todo | In-Progress | Done | Blocked",
+  "evidence": "검증 가능 술어 (예: '_workspace/sso/research.md 존재', 'go test ./... PASS')",
+  "artifact": "_workspace/{plan_name}/{filename}",
   "blocked_reason": "(status=Blocked일 때만) 차단 사유",
-  "timestamp":  "YYYYMMDD_HHMMSS"
+  "timestamp": "YYYYMMDD_HHMMSS"
 }
 ```
 
