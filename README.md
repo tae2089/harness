@@ -14,6 +14,8 @@ gemini skills install https://github.com/tae2089/harness.git --path skills
 
 설치 후 Gemini CLI 세션에서 `"하네스 구성해줘"` 발화 → `gemini-harness` 스킬 자동 트리거 확인.
 
+> **처음이라면 →** [`references/usage-examples.md`](skills/gemini-harness/references/usage-examples.md) 먼저 확인. 8가지 도메인 시나리오(SSO·마이그레이션·콘텐츠 루프·병렬 리서치·장애 분석·풀스택·확장·부분 재실행)와 발화 패턴 매핑, 비트리거 발화 표 제공.
+
 ---
 
 ## 핵심 원칙
