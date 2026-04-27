@@ -64,7 +64,8 @@ harness/
 슬래시 커맨드로 직접 호출:
 
 ```
-/gemini-harness SSO 인증 기능 구현해줘
+/gemini-harness 하네스 구축해줘
+/gemini-harness SSO 인증 프로젝트를 위한 harness 구축해줘
 ```
 
 또는 자연어 발화만으로도 자동 트리거:
