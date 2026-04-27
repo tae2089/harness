@@ -8,7 +8,10 @@
 #   {{DOMAIN}}           담당 도메인/전문 분야
 #   {{OUTPUT_PATH}}      _workspace/{plan_name}/{step}/{agent}-result.md 또는 task_*.json
 #   {{OUTPUT_FORMAT}}    산출물 형식 (JSON·Markdown·코드 파일 등)
-#   {{SANDBOX_MODE}}     read-only | workspace-write | danger-full-access
+#   {{SANDBOX_MODE}}     역할별 선택:
+#                          read-only         → Analyst / Architect / Planner (읽기·조사만)
+#                          workspace-write   → Coder / Reviewer / QA / State Manager (파일 쓰기·테스트)
+#                          danger-full-access → Operator / Deployer (외부 프로세스 실행)
 #   {{MODEL}}            models.md 참조
 
 name = "{{AGENT_NAME}}"
