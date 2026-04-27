@@ -8,10 +8,10 @@
 
 | 에이전트          | 유형    | 핵심 역할                       | 도구                                                                        |
 | ----------------- | ------- | ------------------------------- | --------------------------------------------------------------------------- |
-| @incident-triage  | Analyst | 원인 분석 및 전문가 추천        | `ask_user`, `activate_skill`, `grep_search`, `read_file`, `web_fetch`       |
-| @db-fixer         | Coder   | DB 쿼리 및 스키마 수정          | `ask_user`, `activate_skill`, `mcp_sql_*`, `read_file`, `write_file`        |
-| @logic-fixer      | Coder   | 애플리케이션 비즈니스 로직 수정 | `ask_user`, `activate_skill`, `read_file`, `write_file`, `replace`          |
-| @security-patcher | Coder   | 취약점 패치 및 보안 설정        | `ask_user`, `activate_skill`, `grep_search`, `read_file`, `write_file`      |
+| @incident-triage  | Analyst | 원인 분석 및 전문가 추천        | 사용자 확인 요청, 스킬 로드, `grep_search`, shell `cat`, `web_fetch`       |
+| @db-fixer         | Coder   | DB 쿼리 및 스키마 수정          | 사용자 확인 요청, 스킬 로드, `mcp_sql_*`, shell `cat`, `apply_patch`        |
+| @logic-fixer      | Coder   | 애플리케이션 비즈니스 로직 수정 | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`, `replace`          |
+| @security-patcher | Coder   | 취약점 패치 및 보안 설정        | 사용자 확인 요청, 스킬 로드, `grep_search`, shell `cat`, `apply_patch`      |
 
 ## 오케스트레이터 워크플로우
 
@@ -43,13 +43,13 @@ Phase 2: [Step 실행 루프 — Stage incident-resolution / Step triage]
                         - current_step → "fix", active_pattern → "producer_reviewer" 갱신
                         - step_history에 "triage" completed_at 기록, last_updated: 현재 타임스탬프
                         - @db-fixer 즉시 호출. 프롬프트에 트리아지 분석 요약 + 로그 위치 주입
-         - 파싱 실패 ([NEXT_AGENT] 미포함) → ask_user로 전문가 선택 요청
+         - 파싱 실패 ([NEXT_AGENT] 미포함) → 사용자 확인 요청으로 전문가 선택 요청
          - 순환/3단계 초과 → handle_handoff()가 ask_user + HALT (참조: orchestrator-procedures.md)
 Phase 3: [Step 실행 루프 — Stage incident-resolution / Step fix]
          지정 에이전트(@db-fixer 등)가 수정 수행 후 @incident-triage에게 재검증 요청 (Fix Loop, 최대 2회 재시도(총 3회))
          - 종료 조건(성공): @incident-triage 응답에 [NEXT_AGENT] 없음 + "이상 없음" 또는 "수정 확인" 명시
          - 종료 조건(실패): 3회 후에도 [NEXT_AGENT] 재반환 또는 에러 지속
-           → Blocked, ask_user로 수동 개입 요청. 임의 PASS 절대 금지.
+           → Blocked, 사용자 확인 요청으로 수동 개입 요청. 임의 PASS 절대 금지.
          step "fix" 종료 조건 충족 → stage "incident-resolution" 완료
          checkpoint.json 갱신:
            - step_history에 "fix" completed_at 기록
@@ -80,7 +80,7 @@ Phase 5: 사용자 보고, _workspace/ 보존
 
 ## 에러 핸들링
 
-- 로그 파일 접근 불가(권한·경로 오류) → `ask_user`로 올바른 경로 요청. 임의 경로 추측 금지.
-- 원인 특정 불가(에러 패턴 없음) → 분석 불가 사유를 findings.md [데이터 충돌]에 기록 후 `ask_user`로 추가 컨텍스트 요청.
+- 로그 파일 접근 불가(권한·경로 오류) → 사용자 확인 요청으로 올바른 경로 요청. 임의 경로 추측 금지.
+- 원인 특정 불가(에러 패턴 없음) → 분석 불가 사유를 findings.md [데이터 충돌]에 기록 후 사용자 확인 요청으로 추가 컨텍스트 요청.
 - 재검증 시 동일 에러 반복(Fix Loop 3회 초과) → 재반환 없이 Blocked 판정. 메인 에이전트가 ask_user 호출.
 ```

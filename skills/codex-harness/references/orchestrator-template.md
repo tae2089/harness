@@ -17,8 +17,8 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 ## 가상 팀 구성
 
-> **공통 필수 도구 (표 생략):** `ask_user`, `activate_skill`
-> **오케스트레이터 전용:** `invoke_agent` — 워커 서브에이전트에는 부여하지 않는다.
+> **공통 필수 도구 (표 생략):** 사용자 확인 요청, 스킬 로드
+> **오케스트레이터 전용:** `subagent spawn` — 워커 서브에이전트에는 부여하지 않는다.
 
 | agent     | 타입                 | 역할   | 스킬    | 출력          |
 | --------- | -------------------- | ------ | ------- | ------------- |
@@ -37,7 +37,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 | 있음 | `in_progress` 또는 `partial` | — | workflow.md 읽기 → GOTO Step 2 ¹ |
 | 있음 | `blocked` | 응답 = "계속/재개/해결" | 차단 task 파일 삭제 ² → checkpoint `{status:"in_progress"}` 갱신 → GOTO Step 2 |
 | 있음 | `blocked` | 응답 = "처음부터/초기화" | `_workspace/` → `_workspace_{NOW()}/` 백업 → GOTO Step 1 |
-| 있음 | `blocked` | 기타 (첫 진입 포함) | 차단 사유 보고 ³ → `ask_user` → HALT |
+| 있음 | `blocked` | 기타 (첫 진입 포함) | 차단 사유 보고 ³ → 사용자 확인 요청 → HALT |
 | 있음 | `completed` | 요청 = "부분 수정" | RESUME_FROM 결정 ⁴ → checkpoint `{status:"partial", current_stage, current_step}` 갱신 → GOTO Step 2 |
 | 있음 | `completed` | 기타 | `_workspace/` → `_workspace_{YYYYMMDD_HHMMSS}/` 백업 → GOTO Step 1 |
 
@@ -50,7 +50,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 이전 실행 Blocked. 사유: {ckpt.blocked_reason} | 에이전트: {ckpt.blocked_agent}
 차단 원인을 해결한 뒤 재개해 주세요. ("계속" / "처음부터")
 ```
-> `ask_user`는 다음 턴에서 이 표를 재평가한다.
+> 사용자 확인 요청는 다음 턴에서 이 표를 재평가한다.
 
 ⁴ **부분 수정 RESUME_FROM 결정:**
 
@@ -67,7 +67,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 
 1. `user_input`에서 `{plan_name}` 파싱. 없으면 `ask_user("작업 이름을 지정해주세요.")` → RETURN.
 2. 디렉터리 생성: `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
-3. **스키마 템플릿 동기화 (필수):** 본 스킬의 `references/schemas/` 디렉터리에서 5개 파일을 읽어 `_workspace/_schemas/`에 그대로 작성한다. 각 파일에 대해 `read_file` → `write_file` 1쌍씩 실행:
+3. **스키마 템플릿 동기화 (필수):** 본 스킬의 `references/schemas/` 디렉터리에서 5개 파일을 읽어 `_workspace/_schemas/`에 그대로 작성한다. 각 파일에 대해 shell `cat` → `apply_patch` 1쌍씩 실행:
 
    | 소스 (스킬 reference 경로) | 대상 (워크스페이스 경로) |
    |---------------------------|------------------------|
@@ -77,12 +77,11 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
    | `references/schemas/findings.template.md` | `_workspace/_schemas/findings.template.md` |
    | `references/schemas/tasks.template.md` | `_workspace/_schemas/tasks.template.md` |
    | `references/schemas/models.md` | `_workspace/_schemas/models.md` |
-   | `references/schemas/agent-worker.template.md` | `_workspace/_schemas/agent-worker.template.md` |
+   | `references/schemas/agent-worker.template.toml` | `_workspace/_schemas/agent-worker.template.toml` |
    | `references/schemas/agent-orchestrator.template.md` | `_workspace/_schemas/agent-orchestrator.template.md` |
-   | `references/schemas/agent-state-manager.template.md` | `_workspace/_schemas/agent-state-manager.template.md` |
 
    > `README.md`·`models.md`·에이전트 템플릿은 에이전트 정의 생성 시 참조용 — 워크스페이스 사본은 생성 기준점으로 활용. `models.md`는 모델 ID SoT이므로 반드시 동기화.
-   > **`run_shell_command("cp ...")` 금지** — 런타임 워킹 디렉터리(사용자 프로젝트 루트)에서 스킬 reference 경로는 셸로 도달 불가. 반드시 에이전트 도구 `read_file` + `write_file` 사용.
+   > **`run_shell_command("cp ...")` 금지** — 런타임 워킹 디렉터리(사용자 프로젝트 루트)에서 스킬 reference 경로는 셸로 도달 불가. 반드시 에이전트 도구 shell `cat` + `apply_patch` 사용.
 
    **운영 규칙:**
    - 워커 에이전트는 자기 산출물 작성 전 `_workspace/_schemas/task.schema.json` 읽기.
@@ -129,10 +128,10 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 }
 ```
 
-> **`@state-manager` 위임 패턴 (선택적):** 가상 팀에 `@state-manager`를 포함한 경우, 5~7번 단계(findings.md·tasks.md·checkpoint.json 초기화)와 Step 2의 모든 상태 갱신을 `invoke_agent(@state-manager, ...)` 로 위임한다. 오케스트레이터는 추론·조율에 집중, 상태 I/O는 `@state-manager`(flash 모델)가 스키마 검증 후 처리. 인터페이스: `OPERATION: state.init|checkpoint.update|task.upsert|findings.append|tasks.update|state.archive` + `PAYLOAD:` 블록. 상세 명세: `references/schemas/agent-state-manager.template.md`.
+> **`@state-manager` 위임 패턴 (선택적):** 가상 팀에 `@state-manager`를 포함한 경우, 5~7번 단계(findings.md·tasks.md·checkpoint.json 초기화)와 Step 2의 모든 상태 갱신을 `subagent spawn` 로 위임한다. 오케스트레이터는 추론·조율에 집중, 상태 I/O는 `@state-manager`(flash 모델)가 스키마 검증 후 처리. 인터페이스: `OPERATION: state.init|checkpoint.update|task.upsert|findings.append|tasks.update|state.archive` + `PAYLOAD:` 블록. 인터페이스는 OPERATION 단문으로 정의한다.
 
 > **표기법 브리지:** `workflow.md`는 JSON이 아닌 **마크다운 헤더**(`### Stage 1: {deliverable-name}`, `#### Step 1: {deliverable-name}`)로만 Stage·Step를 선언한다. 위 checkpoint.json의 `"current_stage": "{workflow.stages[0].name}"` 표기는 "첫 번째 `### Stage` 헤더에서 파싱한 이름"을 의미하는 의사코드다 — JSON 배열 접근이 아니다.
-> **파싱 예시:** `### Stage 1: sso-integration` → `current_stage = "sso-integration"` / `#### Step 1: requirements-gathering` → `current_step = "requirements-gathering"`. 오케스트레이터는 `workflow.md`를 `read_file`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
+> **파싱 예시:** `### Stage 1: sso-integration` → `current_stage = "sso-integration"` / `#### Step 1: requirements-gathering` → `current_step = "requirements-gathering"`. 오케스트레이터는 `workflow.md`를 shell `cat`로 읽어 헤더 순서대로 Stage·Step 목록을 구성한 뒤 이름(텍스트)으로 참조한다.
 > **명명 규칙(필수):** `main`·`step1`·`task` 같은 placeholder 금지. kebab-case + deliverable 의미 명사구 (Jira 제목 컨벤션). 위반 시 workflow.md 스키마 검증에서 차단.
 
 8. **workflow.md 스키마 검증 (작성 직후 필수, 사이클 검증보다 먼저 실행):**
@@ -168,17 +167,17 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 **매 사이클 시작 시:**
 
 1. `workflow.md`, `checkpoint.json`, `findings.md` 읽기.
-2. `workflow[ckpt.current_stage][ckpt.current_step]` → `step_block` 추출. 없으면 findings.md 오류 기록 → `ask_user` → HALT.
+2. `workflow[ckpt.current_stage][ckpt.current_step]` → `step_block` 추출. 없으면 findings.md 오류 기록 → 사용자 확인 요청 → HALT.
 3. `step_block`에서 `active_agents`, `pattern`, `exit_cond`, `max_iterations` 추출.
 4. **심볼릭 플레이스홀더 해결:** `active_agents`에 `@선택된_전문가` 등 심볼릭 이름 포함 시:
    - `checkpoint.shared_variables.selected_expert` 읽기 → 실제 에이전트명으로 치환.
    - 필드 미존재 → `ask_user("expert_pool Step이 아직 실행되지 않았거나 selected_expert 미기록. 어떤 에이전트를 호출할까요?")` → RETURN.
    > 이 치환은 런타임에만 적용. workflow.md 파일 자체는 수정하지 않는다.
-5. **Pre-blocked 검사 (에이전트 호출 전 필수):** `_workspace/tasks/task_*.json` 중 `status=="blocked" AND agent IN active_agents` → 발견 시 checkpoint `blocked` 갱신 → `ask_user` → RETURN. 에이전트 호출 절대 금지.
+5. **Pre-blocked 검사 (에이전트 호출 전 필수):** `_workspace/tasks/task_*.json` 중 `status=="blocked" AND agent IN active_agents` → 발견 시 checkpoint `blocked` 갱신 → 사용자 확인 요청 → RETURN. 에이전트 호출 절대 금지.
 6. 출입 통제: `active_agents` 목록 외 에이전트 호출 금지.
 7. **findings.md 컨텍스트 주입:** 에이전트 호출 프롬프트에 `findings.md` 전체를 포함한다.
    ```
-   invoke_agent(@{name}, prompt="""
+   subagent spawn(@{name}, prompt="""
    {task_description}
 
    ## 공유 컨텍스트 (findings.md)
@@ -192,10 +191,10 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 | 패턴 | 호출 방식 | 완료 후 기록 |
 |------|-----------|-------------|
 | `pipeline` / `hierarchical` | 순차 (`wait_for_previous=true`), 에이전트마다 즉시 기록 | findings.md, tasks.md, checkpoint.json |
-| `fan_out` / `fan_out_fan_in` | 병렬 (`wait_for_previous=false`) → 전체 완료 후 `COLLECT ALL task_*.json` → ATOMIC_WRITE ⁷ | tasks/task_{agent}_{id}.json, tasks.md, findings.md, checkpoint.json |
+| `fan_out` / `fan_out_fan_in` | 병렬 (`wait_for_previous=false`) → 전체 완료 후 `COLLECT ALL task_*.json` → apply_patch ⁷ | tasks/task_{agent}_{id}.json, tasks.md, findings.md, checkpoint.json |
 | `producer_reviewer` | — | GOTO Step 3 |
 | `expert_pool` | CLASSIFY → 단일 에이전트 순차 ⁵ | findings.md[라우팅 근거], task 파일, tasks.md |
-| `supervisor` | 배치별 병렬 → 배치마다 ATOMIC_WRITE | tasks.md, checkpoint.json |
+| `supervisor` | 배치별 병렬 → 배치마다 apply_patch | tasks.md, checkpoint.json |
 | `handoff` | 순차, `[NEXT_AGENT]` 키워드 파싱 ⁶ | task 파일 (수신자 또는 첫 에이전트), findings.md, tasks.md |
 
 ⁵ **expert_pool 상세:**
@@ -208,13 +207,13 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 2. 응답에 `[NEXT_AGENT: @{name}]` 포함 시: `handle_handoff({name})` 순환 감지 → next_prompt 구성 → `{name}` 호출 → `task_{name}_{id}.json` 기록.
 3. `[NEXT_AGENT]` 미포함 시: `task_{active_agents[0]}_{id}.json` 기록 (단독 완료).
 
-⁷ **fan_out / fan_out_fan_in 에이전트 책임:** 병렬 에이전트 각자가 작업 완료 직후 `_workspace/tasks/task_{agent}_{id}.json`을 직접 작성한다(메인 에이전트가 대신 작성하지 않음). 메인 에이전트는 전체 완료 후 GLOB으로 파일을 수집하여 ATOMIC_WRITE로 통합한다.
+⁷ **fan_out / fan_out_fan_in 에이전트 책임:** 병렬 에이전트 각자가 작업 완료 직후 `_workspace/tasks/task_{agent}_{id}.json`을 직접 작성한다(메인 에이전트가 대신 작성하지 않음). 메인 에이전트는 전체 완료 후 GLOB으로 파일을 수집하여 apply_patch로 통합한다.
 
    **부분 실패 복구 (일부 에이전트 task 파일 미생성 시):**
    1. GLOB 결과 파일 수 < 예상 에이전트 수 → 미생성 에이전트 식별 (active_agents에서 GLOB 결과 차집합).
    2. 미생성 에이전트마다 Zero-Tolerance 재호출 (최대 2회 재시도, 총 3회).
    3. 재시도 후에도 미생성 → `blocked_protocol(agent, task)` 호출 → HALT. 부분 결과로 강제 진행 절대 금지.
-   4. 모든 에이전트 task 파일 확인 후에만 ATOMIC_WRITE 수행.
+   4. 모든 에이전트 task 파일 확인 후에만 apply_patch 수행.
 
 **종료 조건 검사 (`exit_cond` 유형별):**
 
@@ -228,7 +227,7 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 **종료 조건 충족 시 — Step/Stage 전환:**
 
 1. checkpoint.json `step_history`에 완료 기록.
-2. `step_block.다음_step` 누락(필드 없음 또는 null/빈 값) → findings.md 오류 기록 → `ask_user` → HALT.
+2. `step_block.다음_step` 누락(필드 없음 또는 null/빈 값) → findings.md 오류 기록 → 사용자 확인 요청 → HALT.
 3. `다음_step != "done"` → checkpoint 갱신(`current_step`, `active_pattern`, `handoff_chain: []`) → Step 2 루프 상단 재진입 (다음 Step로 진입).
 4. `다음_step == "done"` → GOTO Stage 전환 게이트. (상세: `references/stage-step-guide.md` § "Stage 전환 프로토콜")
 
@@ -245,14 +244,14 @@ description: "{도메인} 하네스 오케스트레이터. 발견 사항 공유(
 retries ← 0
 
 WHILE retries < 3:
-    CALL invoke_agent(@producer, prompt="@{_workspace/findings.md} 참조. {생성 지시}.")
+    CALL subagent spawn
     WRITE "_workspace/{plan_name}/{output}_v{retries+1}.md" ← producer 결과
 
-    CALL invoke_agent(@reviewer, prompt="@{위 파일} 검증. 결과를 task_{reviewer}_{id}.json에 기록.")
+    CALL subagent spawn
     READ "_workspace/tasks/task_{reviewer}_{id}.json" → review
 
     IF review.status == "done":  // PASS
-        ATOMIC_WRITE { tasks.md ← PASS evidence, checkpoint.json ← tasks_snapshot 갱신 }
+        apply_patch { tasks.md ← PASS evidence, checkpoint.json ← tasks_snapshot 갱신 }
         GOTO Step 4
 
     ELSE:  // FAIL
@@ -269,7 +268,7 @@ WHILE retries < 3:
 ### Step 4: 통합 및 최종 산출
 
 1. `GLOB "_workspace/tasks/task_*.json"` → `status=="done"` 파일만 필터 → 각 파일의 `artifact_path` 추출 → `artifacts` 리스트 구성.
-2. findings.md의 `[데이터 충돌]` 섹션 확인 → 충돌 있으면 reviewer 에이전트 호출하여 해소. 미해소 시 `ask_user` → RETURN.
+2. findings.md의 `[데이터 충돌]` 섹션 확인 → 충돌 있으면 reviewer 에이전트 호출하여 해소. 미해소 시 사용자 확인 요청 → RETURN.
 3. `_workspace/{plan_name}/final_{output}.md` ← artifacts 병합(MERGE) 후 저장.
    > MERGE: 각 에이전트 산출물을 역할 순서대로 읽어 섹션별로 연결. 포맷은 도메인에 따라 결정 (마크다운: `## {에이전트명}\n{내용}` 연결, JSON: 키 병합, 코드: 파일 경로 목록).
 

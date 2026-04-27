@@ -8,8 +8,8 @@
 
 | 에이전트          | 유형     | 역할             | 핵심 도구                                                                      | 스킬                                  |
 | ----------------- | -------- | ---------------- | ------------------------------------------------------------------------------ | ------------------------------------- |
-| @webtoon-artist   | Coder    | 패널 이미지 생성 | `ask_user`, `activate_skill`, `read_file`, `write_file`                        | `generate-webtoon`                    |
-| @webtoon-reviewer | Reviewer | 품질 검수        | `ask_user`, `activate_skill`, `read_file`, `write_file`, `glob`, `grep_search` | `review-webtoon`, `fix-webtoon-panel` |
+| @webtoon-artist   | Coder    | 패널 이미지 생성 | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`                        | `generate-webtoon`                    |
+| @webtoon-reviewer | Reviewer | 품질 검수        | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`, shell `find`, `grep_search` | `review-webtoon`, `fix-webtoon-panel` |
 
 ## 에이전트 파일 전문 예시: `.codex/agents/webtoon-reviewer.md`
 
@@ -18,14 +18,12 @@
 name: webtoon-reviewer
 description: "웹툰 패널의 품질을 검수하는 전문가. 구도·캐릭터 일관성·텍스트 가독성·연출을 평가. 웹툰 QA·검수·재작업 요청 시 반드시 이 에이전트를 선택."
 kind: local
-model: "gpt-5.2-thinking"
+model: "gpt-5.5"
 temperature: 0.2
 max_turns: 10
 tools:
-  - ask_user
-  - activate_skill
   - read_file
-  - write_file
+  - apply_patch
   - glob
   - grep_search
 ---
@@ -72,8 +70,8 @@ tools:
 ## 에러 핸들링
 
 - 이미지 로드 실패 시 해당 패널을 REDO로 판정
-- 3회 재생성 후에도 REDO인 패널은 **Blocked 처리 후 ask_user로 사용자 개입 요청. 임의 PASS 처리 절대 금지.**
-- 판정 기준이 모호하면 `ask_user`로 레퍼런스 이미지를 요청
+- 3회 재생성 후에도 REDO인 패널은 **Blocked 처리 후 사용자 확인 요청으로 사용자 개입 요청. 임의 PASS 처리 절대 금지.**
+- 판정 기준이 모호하면 사용자 확인 요청으로 레퍼런스 이미지를 요청
 ````
 
 ## 오케스트레이터 워크플로우
@@ -93,7 +91,7 @@ Phase 2: [Step 실행 루프 — Stage webtoon-episode / Step produce]
          메인 에이전트가 review_report.md 파싱:
          - FIX/REDO 패널 → 수정 지시를 findings.md [변경 요청]에 기록 → @webtoon-artist 재호출
            (FIX: 부분 수정, REDO: 전면 재생성)
-         - 1회차 검수 후 REDO 패널이 전체의 50% 이상이면 재호출 전 ask_user로 프롬프트 재조정 제안
+         - 1회차 검수 후 REDO 패널이 전체의 50% 이상이면 재호출 전 사용자 확인 요청으로 프롬프트 재조정 제안
          - FIX+REDO 합산 재호출 최대 2회 재시도(총 3회). 초과 시 Blocked → ask_user
          루프 탈출 조건: 모든 패널 PASS → Phase 3으로 전환
 Phase 3: 최종 PASS 집계 → step "produce" 종료 조건 충족

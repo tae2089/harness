@@ -8,10 +8,10 @@
 |---|------|----------------|----------|
 | 1 | 단순 workflow.md 구조 검증 | Stage 1개 + Step 1개 생성 여부 | Stage 2 블록 없음 + `main/main` 구조 |
 | 2 | 다단계 워크플로우 트리거 | 발화에서 다단계 자동 선택 | Stage 블록 2개 이상 존재 |
-| 3 | Step 종료 조건 미충족 → 전환 차단 | 미완료 task 있을 때 다음 Step 진입 금지 | Stage 2 에이전트 invoke_agent 미발생 |
+| 3 | Step 종료 조건 미충족 → 전환 차단 | 미완료 task 있을 때 다음 Step 진입 금지 | Stage 2 에이전트 subagent spawn 미발생 |
 | 4 | Step 자동 전환 (승인 불필요) | 종료 조건 충족 시 사용자 개입 없이 전환 | 승인 요청 없이 다음 Step 에이전트 호출 |
 | 5 | Stage 전환 게이트 (승인 필수) | Stage 완료 시 승인 게이트 발동 | 승인 요청 발생 + 다음 Stage 에이전트 미호출 |
-| 6 | Step별 에이전트 출입 통제 | 현재 Step 목록 외 에이전트 호출 차단 | 비활성 에이전트 invoke_agent 미발생 |
+| 6 | Step별 에이전트 출입 통제 | 현재 Step 목록 외 에이전트 호출 차단 | 비활성 에이전트 subagent spawn 미발생 |
 
 ---
 
@@ -64,7 +64,7 @@
 - Step 2 또는 Stage 2로 전환하지 않고 `gather/research` 패턴에 따라 남은 에이전트 재호출.
 - Stage 2 에이전트(`@writer`, `@editor`)를 이 턴에서 호출하지 않음.
 
-**판정:** 해당 사이클에서 Stage 2 에이전트 `invoke_agent` 미발생 시 PASS.
+**판정:** 해당 사이클에서 Stage 2 에이전트 `subagent spawn` 미발생 시 PASS.
 
 ---
 
@@ -84,7 +84,7 @@
 - 사용자 승인 요청 없이 `current_step` → `"architecture"` 갱신.
 - 같은 턴 내 Step 2(architecture) 에이전트(`@architect`) 즉시 호출.
 
-**판정:** 사용자 승인 요청 없이 `@architect` `invoke_agent` 발생 + `checkpoint.json`의 `current_step` = `"architecture"` 시 PASS.
+**판정:** 사용자 승인 요청 없이 `@architect` `subagent spawn` 발생 + `checkpoint.json`의 `current_step` = `"architecture"` 시 PASS.
 
 ---
 
@@ -117,6 +117,6 @@
 
 **기대 동작:**
 - 메인이 `gather/research` Step 블록 읽기 → `@writer` 목록에 없음 → 호출 보류.
-- `@writer` `invoke_agent` 미발생.
+- `@writer` `subagent spawn` 미발생.
 
-**판정:** 해당 사이클에서 `@writer` `invoke_agent` 미발생 시 PASS.
+**판정:** 해당 사이클에서 `@writer` `subagent spawn` 미발생 시 PASS.

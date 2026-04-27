@@ -1,5 +1,5 @@
 <!--
-tasks.md schema — Main agent sole writer. Aggregates from _workspace/tasks/task_*.json via GLOB + ATOMIC_WRITE.
+tasks.md schema — Main agent sole writer. Aggregates from _workspace/tasks/task_*.json via GLOB + apply_patch.
 Workers DO NOT modify this file directly — race condition on parallel writes.
 
 Columns:

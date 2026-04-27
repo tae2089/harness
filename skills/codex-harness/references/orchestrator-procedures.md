@@ -18,7 +18,7 @@ PROCEDURE handle_error(agent, task, error_type):
         RETURN
 
     IF error_type == "majority_failure":        // 과반 에이전트 실패
-        ATOMIC_WRITE "_workspace/tasks.md" ← 중단 지점 기록
+        apply_patch "_workspace/tasks.md" ← 중단 지점 기록
         CALL ask_user("과반 실패. 진행 여부 확인 요청.")
         RETURN
 
@@ -54,7 +54,7 @@ PROCEDURE handle_error(agent, task, error_type):
 
 // ── Blocked 프로토콜 (공통) ──────────────────────────────────────
 PROCEDURE blocked_protocol(agent, task):
-    ATOMIC_WRITE "_workspace/tasks/task_{agent}_{id}.json":
+    apply_patch "_workspace/tasks/task_{agent}_{id}.json":
         status  ← "blocked"
         result  ← null
         retries ← task.retries   // 최종값 보존
@@ -83,7 +83,7 @@ PROCEDURE handle_handoff(next_agent):
         HALT
 
     // 안전 → 이력 갱신 후 호출
-    ATOMIC_WRITE "_workspace/checkpoint.json":
+    apply_patch "_workspace/checkpoint.json":
         ckpt.handoff_chain ← APPEND(call_history, next_agent)
         ckpt.last_updated  ← NOW()
     CALL spawn_subagent(next_agent, ...)

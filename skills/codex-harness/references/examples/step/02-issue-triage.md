@@ -58,6 +58,6 @@ review/report:         @report-writer가 analysis.md 읽고 보고서 초안 작
 ```
 Step 2(analysis) 진입 시:
   1. checkpoint.json의 shared_variables.selected_expert 읽기
-  2. 해당 에이전트명으로 invoke_agent 호출
+  2. 해당 에이전트명으로 subagent spawn 호출
   3. workflow.md 파일 자체는 수정하지 않음
 ```

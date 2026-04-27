@@ -139,7 +139,7 @@
 - **모드:** 운영 (부분 재실행)
 - **Phase 0 분기:** `checkpoint.json status: "completed"` 발견 → 부분 재실행 모드.
 - **처리:**
-  1. 사용자에게 영향 범위 확인 (`ask_user`).
+  1. 사용자에게 영향 범위 확인 (사용자 확인 요청).
   2. `_workspace/sso-integration/`의 `research.md` 보존, `plan.md` 삭제.
   3. checkpoint.json `current_stage: "research-plan"`, `current_step: "architecture-design"`, `status: "in_progress"`로 되돌림.
   4. Step 2부터 재실행. 이후 Stage는 영향 분석 후 재실행 여부 결정.
@@ -156,7 +156,7 @@
 | "이 함수 버그 고쳐줘" | 단일 코드 수정 — 하네스 필요 없음 | 직접 코드 편집 |
 | "Go에서 channel 쓰는 법 알려줘" | 단순 질문 | 직접 응답 |
 | "테스트 한 번 돌려줘" | 단일 명령 | `run_shell_command` 직접 |
-| "tasks.md 항목 하나만 수정해줘" | 기존 산출물 단일 편집 | `write_file` 직접 (단, 메인 에이전트가 갱신 책임 있는 경우는 오케스트레이터 호출) |
+| "tasks.md 항목 하나만 수정해줘" | 기존 산출물 단일 편집 | `apply_patch` 직접 (단, 메인 에이전트가 갱신 책임 있는 경우는 오케스트레이터 호출) |
 | "오케스트레이터 코드 한 줄 고쳐줘" | 단일 편집 | 직접 편집. 단, 흐름 변경이면 운영 모드로 진입 (`evolution-protocol.md`) |
 
 > **경계선 발화 (애매):** "에이전트 하나 추가해줘" — 단일 에이전트 추가는 **확장 모드**로 진입 (Phase 3·4·5만 실행). expansion-matrix.md 매트릭스로 Phase 결정.

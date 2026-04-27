@@ -35,7 +35,7 @@
 ### 에이전트 정의 파일
 
 - 경로: `.codex/agents/{agent-name}.md` (프로젝트) 또는 `~/.codex/agents/{agent-name}.md` (사용자).
-- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gpt-5.2-thinking"`, 워커 → `"gpt-5.3-codex"` , `tools` (반드시 `ask_user`·`activate_skill` 포함).
+- 필수 YAML: `name`, `description`(pushy·후속 키워드 포함), `kind: local`, `model`(오케스트레이터·Architect → `"gpt-5.2-thinking"`, 워커 → `"gpt-5.3-codex"` , `tools` (반드시 사용자 확인 요청·스킬 로드 포함).
 - 권장 YAML: `temperature`(역할별 0.2~0.7), `max_turns`(5~20).
 - 필수 섹션: 핵심 역할, 작업 원칙, 입출력 프로토콜, 협업 프로토콜(Codex CLI), 에러 핸들링.
 
@@ -78,4 +78,4 @@
 - 팀 전체를 조율하는 상위 스킬. Phase 0(재실행 감지)부터 Phase 5(보존·보고)까지 포함.
 - 템플릿: `references/orchestrator-template.md` 참조.
 - 서브에이전트 간 직접 통신 불가 — 모든 협업을 `findings.md`·`tasks.md`·`checkpoint.json`으로 중개.
-- `_workspace/workflow.md` Phase 1에서 Stage-Step 선언; 매 사이클 읽어 현재 step의 `활성 에이전트`만 호출. 에이전트 실패 시 최대 2회 재시도(총 3회) → 미해결 시 `Blocked` + `ask_user`. 임의 Skip 절대 금지.
+- `_workspace/workflow.md` Phase 1에서 Stage-Step 선언; 매 사이클 읽어 현재 step의 `활성 에이전트`만 호출. 에이전트 실패 시 최대 2회 재시도(총 3회) → 미해결 시 `Blocked` + 사용자 확인 요청. 임의 Skip 절대 금지.

@@ -8,8 +8,8 @@
 
 | 에이전트              | 유형      | 핵심 도구                                                                               | 역할                     |
 | --------------------- | --------- | --------------------------------------------------------------------------------------- | ------------------------ |
-| @migration-supervisor | Architect | `ask_user`, `activate_skill`, `list_directory`, `glob`, `read_file`                     | 파일 분석·배치 분해      |
-| @migrator-1~N         | Coder     | `ask_user`, `activate_skill`, `read_file`, `write_file`, `replace`, `run_shell_command` | 할당된 배치 마이그레이션 |
+| @migration-supervisor | Architect | 사용자 확인 요청, 스킬 로드, `list_directory`, shell `find`, shell `cat`                     | 파일 분석·배치 분해      |
+| @migrator-1~N         | Coder     | 사용자 확인 요청, 스킬 로드, shell `cat`, `apply_patch`, `replace`, `run_shell_command` | 할당된 배치 마이그레이션 |
 
 ## 오케스트레이터 워크플로우
 
@@ -28,19 +28,19 @@ Phase 1: ① @migration-supervisor 호출
 Phase 2: [Step 실행 루프 — Stage code-migration / Step migrate]
          메인 에이전트가 tasks.md를 읽어 가용 워커 수만큼 배치 할당
          - 단일 응답 턴에서 @migrator-1 / @migrator-2 / @migrator-3를
-           invoke_agent(wait_for_previous: false)로 배치 호출
+           subagent spawn(wait_for_previous: false)로 배치 호출
          - 각 프롬프트에 할당 배치의 파일 목록·성공 기준 명시
-         - 워커 완료 → 산출물 read_file로 확인
+         - 워커 완료 → 산출물 `cat`으로 확인
            - 성공 → tasks.md 상태 Todo→Done, 남은 배치 중 우선순위 최상을 즉시 재할당
            - 실패 → findings.md [데이터 충돌]에 원인 기록, 최대 2회 재시도 (총 3회)
-           - 3회 후에도 실패 → Blocked 처리, ask_user로 대체 경로 질의. 임의 Skip 절대 금지.
+           - 3회 후에도 실패 → Blocked 처리, 사용자 확인 요청으로 대체 경로 질의. 임의 Skip 절대 금지.
          모든 배치 Done → step "migrate" 종료 조건 충족
          checkpoint.json 갱신: current_step → "test", active_pattern → "pipeline"
                             step_history에 "migrate" completed_at 기록, last_updated: 현재 타임스탬프
 Phase 3: [Step 실행 루프 — Stage code-migration / Step test]
          통합 테스트 실행 (run_shell_command)
          → 실패 시 영향 범위 분석 후 해당 배치만 재실행 (최대 2회 재시도(총 3회))
-         → 3회 후에도 실패 → Blocked 처리, ask_user로 수동 대응 요청. 임의 완료 처리 금지.
+         → 3회 후에도 실패 → Blocked 처리, 사용자 확인 요청으로 수동 대응 요청. 임의 완료 처리 금지.
          step "test" 종료 조건 충족 → stage "code-migration" 완료
          checkpoint.json 갱신:
            - step_history에 "test" completed_at 기록

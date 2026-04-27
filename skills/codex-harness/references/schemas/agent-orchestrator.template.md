@@ -44,7 +44,7 @@ description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 
 ### Step 1: 초기화
 
 1. `_workspace/{{PLAN_NAME}}/`, `_workspace/tasks/`, `_workspace/_schemas/` 디렉터리 생성.
-2. **스키마 동기화** — `references/schemas/` 파일 5종 + 에이전트 템플릿 3종을 `_workspace/_schemas/`로 `read_file` → `write_file` 복사 (`references/orchestrator-template.md` Step 1.3 참조).
+2. **스키마 동기화** — `references/schemas/` 파일 5종 + 에이전트 템플릿 3종을 `_workspace/_schemas/`로 shell `cat` → `apply_patch` 복사 (`references/orchestrator-template.md` Step 1.3 참조).
 3. `workflow.md` 작성 (`_workspace/_schemas/workflow.template.md` 변수 치환):
    {{STAGE_STEP_SUMMARY}}
 4. `findings.md` 초기화 (`_workspace/_schemas/findings.template.md` 기반).
@@ -68,4 +68,4 @@ description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 
 
 ## 에러 핸들링
 
-Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도(총 3회) → 미해결 시 `task_*.json` status=blocked + `ask_user`. 임의 Skip 절대 금지.
+Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도(총 3회) → 미해결 시 `task_*.json` status=blocked + 사용자 확인 요청. 임의 Skip 절대 금지.
