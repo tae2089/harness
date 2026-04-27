@@ -10,11 +10,9 @@
 > | `write_file` / `ATOMIC_WRITE` | `apply_patch` (외과적 수정) |
 > | `ask_user` | approval prompt / 사용자 확인 |
 > | `activate_skill` | Codex 스킬 활성화 (`$skill-name`) |
-> | `.codex/agents/{name}.md` | `.codex/agents/{name}.toml` |
-> | `AGENTS.md` | `AGENTS.md` |
+> | `.gemini/agents/{name}.md` (YAML) | `.codex/agents/{name}.toml` (TOML) |
+> | `GEMINI.md` | `AGENTS.md` |
 > | `tools: [ask_user, ...]` | `sandbox_mode = "..."` |
->
-> 상세: `references/codex-vs-gemini.md`
 
 > **주의:** 서브에이전트 호출은 Codex subagent spawn 사용. 병렬: 기본값. 순차: 스킬 지시로 단계 분리. 병렬 실행: `wait_for_previous: false`. 셸 백그라운드(dev server 등): `run_shell_command`. Claude Code와의 API 차이 상세(`TeamCreate`·`SendMessage`·`TaskCreate` 부재 이유): `references/agent-design-patterns.md` § "실행 모드: 오케스트레이션" 참조.
 

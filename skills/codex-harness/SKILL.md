@@ -136,7 +136,6 @@ Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도 → 미해결 시 
 - `references/usage-examples.md` — 🚀 트리거 발화 시나리오 + 모드 매핑
 - `references/agent-design-patterns.md` — 7대 패턴 + Codex sandbox 권한 매핑
 - `references/orchestrator-template.md` — Step 0~5 의사코드 (Codex 버전)
-- `references/codex-vs-gemini.md` — Gemini↔Codex 대응표 + 마이그레이션 가이드
 - `references/schemas/models.md` — ⚠️ 모델 ID 정본 (OpenAI)
 - `references/schemas/agent-worker.template.toml` — 워커 에이전트 TOML 기준
 - `references/schemas/` — 런타임 스키마 SoT (8종)
