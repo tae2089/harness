@@ -49,7 +49,7 @@ Apply `references/orchestrator-template.md` Step 0 procedure. Branch based on `_
    {{STAGE_STEP_SUMMARY}}
 4. Initialize `findings.md` (based on `_workspace/_schemas/findings.template.md`).
 5. Initialize `tasks.md` (based on `_workspace/_schemas/tasks.template.md`).
-6. Create `checkpoint.json` (must conform to `_workspace/_schemas/checkpoint.schema.json` schema):
+6. Create `checkpoint.json` (validated automatically by `python _workspace/state.py` on write):
    ```json
    {
      "plan_name": "{{PLAN_NAME}}",

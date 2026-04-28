@@ -294,7 +294,6 @@ New orchestrator skills read their own `references/schemas/` at runtime (`codex-
 └── references/
     └── schemas/
         ├── task.schema.json                    ← copy from codex-harness/references/schemas/
-        ├── checkpoint.schema.json              ← same
         ├── workflow.template.md                ← same
         ├── findings.template.md                ← same
         ├── tasks.template.md                   ← same
@@ -305,7 +304,7 @@ New orchestrator skills read their own `references/schemas/` at runtime (`codex-
         └── state.py                            ← state manager CLI (deployed to _workspace/state.py at init)
 ```
 
-> **Bundle Validation:** Step 1.3 reads all 10 items in `references/schemas/` via shell `cat`, so any missing file causes immediate runtime failure. Immediately after skill creation, confirm all 10 files exist with `ls .agents/skills/{name}/references/schemas/`.
+> **Bundle Validation:** Step 1.3 reads all 9 items in `references/schemas/` via shell `cat`, so any missing file causes immediate runtime failure. Immediately after skill creation, confirm all 9 files exist with `ls .agents/skills/{name}/references/schemas/`.
 > **Update Policy:** When `codex-harness` `references/schemas/` changes, propagate the same change to all derived orchestrator skills (drift prevention). The `_workspace/_schemas/` in an in-progress workspace is a snapshot and should be preserved.
 
 > **Full bundle example (case integrating all outputs of one domain):** See `references/examples/full-bundle/sso-style.md`. A canonical package that simultaneously creates all 5 files: orchestrator SKILL.md + workflow.md + findings.md + tasks.md + checkpoint.json.
@@ -331,7 +330,7 @@ The procedure for converting non-standard orchestrator skills previously written
 | **M3. Pattern Assignment** | Assign 1 of the 7 patterns to each Step (`pipeline`·`fan_out_fan_in`·`expert_pool`·`producer_reviewer`·`supervisor`·`hierarchical`·`handoff`). Free notation ("sequentially") is prohibited. | Passes enum check | Mapping table with pattern column added |
 | **M4. Termination Condition Conversion** | Natural language → verifiable predicate. `"QA approval"` → `verdict=PASS in qa_verdict.json`, `"when done"` → `status=done in task_*.json`, `"sufficiently"` → `iterations ≥ N`. | Passes `orchestrator-template.md` Step 1.8 whitelist | Verified predicate column added |
 | **M5. Create 5 Output Files** | Based on the mapping table, create `workflow.md` + `findings.md` + `tasks.md` + `checkpoint.json`. New SKILL.md body adopts the `references/orchestrator-template.md` skeleton. | `workflow.md` has 0 missing fields out of 6, cycle validation passes | New 5 files |
-| **M6. Bundle schemas/** | Copy 10 items from `codex-harness/references/schemas/` to new skill's `references/schemas/` (task/checkpoint/workflow/findings/tasks schemas + models.md + agent-worker.template.toml + agent-orchestrator.template.md + agent-state-manager.template.toml + state.py). | 10 files exist at `ls .agents/skills/{new}/references/schemas/` | Bundle complete |
+| **M6. Bundle schemas/** | Copy 9 items from `codex-harness/references/schemas/` to new skill's `references/schemas/` (task schema + workflow/findings/tasks templates + models.md + agent-worker.template.toml + agent-orchestrator.template.md + agent-state-manager.template.toml + state.py). | 9 files exist at `ls .agents/skills/{new}/references/schemas/` | Bundle complete |
 
 **Example conversion table (sso-dev-flow → 5-stage Stage-Step):**
 

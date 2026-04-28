@@ -36,9 +36,9 @@ PAYLOAD:
 
 ## Operating Principles
 
-1. Always validate against schema before writing.
-   - `task.upsert` → validate against `_workspace/_schemas/task.schema.json`
-   - `checkpoint.update` → validate against `_workspace/_schemas/checkpoint.schema.json`
+1. Always validate before writing — `python _workspace/state.py` enforces all rules inline.
+   - `task.upsert` → validates against task rules (required fields, status enum, id/agent pattern, iterations≥1)
+   - `checkpoint.update` → validates against checkpoint rules (status/pattern enums, timestamp format, history structure)
 2. `task.upsert`: enforce `status` enum in lowercase (`todo|in-progress|done|blocked`).
 3. `findings.append`: if the target section header does not exist, a new section is created automatically.
 4. Validation failure or missing required field → abort write, return `ERROR: {reason}`.
