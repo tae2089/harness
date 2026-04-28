@@ -39,6 +39,7 @@ _CHECKPOINT_REQUIRED = frozenset({
     "active_pattern", "stage_history", "step_history", "stage_artifacts",
     "handoff_chain", "tasks_snapshot", "shared_variables", "last_updated",
 })
+_CHECKPOINT_ALLOWED = _CHECKPOINT_REQUIRED | frozenset({"blocked_reason", "blocked_agent"})
 _CHECKPOINT_STATUS_ENUM = {"in_progress", "partial", "blocked", "completed"}
 _CHECKPOINT_PATTERN_ENUM = {
     "pipeline", "fan_out_fan_in", "expert_pool",
@@ -47,6 +48,7 @@ _CHECKPOINT_PATTERN_ENUM = {
 _TS_RE = re.compile(r"^\d{8}_\d{6}$")
 
 _TASK_REQUIRED = frozenset({"id", "agent", "stage", "step", "status", "timestamp"})
+_TASK_ALLOWED = _TASK_REQUIRED | frozenset({"evidence", "artifact", "blocked_reason", "iterations"})
 _TASK_STATUS_ENUM = {"todo", "in-progress", "done", "blocked"}
 _TASK_ID_RE = re.compile(r"^task_[a-zA-Z0-9_-]+_\d+$")
 _AGENT_RE = re.compile(r"^@[a-zA-Z0-9_-]+$")
@@ -56,6 +58,9 @@ _AGENT_RE = re.compile(r"^@[a-zA-Z0-9_-]+$")
 
 def _errors_checkpoint(data: dict) -> list[str]:
     errs: list[str] = []
+    extra = data.keys() - _CHECKPOINT_ALLOWED
+    if extra:
+        errs.append(f"extra fields not allowed: {sorted(extra)}")
     missing = _CHECKPOINT_REQUIRED - data.keys()
     if missing:
         errs.append(f"missing required fields: {sorted(missing)}")
@@ -70,11 +75,25 @@ def _errors_checkpoint(data: dict) -> list[str]:
         for f in ("blocked_reason", "blocked_agent"):
             if not data.get(f):
                 errs.append(f"status=blocked requires '{f}'")
+    for i, item in enumerate(data.get("stage_history", [])):
+        ca = item.get("completed_at", "")
+        if not _TS_RE.match(str(ca)):
+            errs.append(f"stage_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
+    for i, item in enumerate(data.get("step_history", [])):
+        ca = item.get("completed_at", "")
+        if not _TS_RE.match(str(ca)):
+            errs.append(f"step_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
+        iters = item.get("iterations")
+        if not isinstance(iters, int) or iters < 1:
+            errs.append(f"step_history[{i}].iterations must be integer >= 1, got '{iters}'")
     return errs
 
 
 def _errors_task(data: dict) -> list[str]:
     errs: list[str] = []
+    extra = data.keys() - _TASK_ALLOWED
+    if extra:
+        errs.append(f"extra fields not allowed: {sorted(extra)}")
     missing = _TASK_REQUIRED - data.keys()
     if missing:
         errs.append(f"missing required fields: {sorted(missing)}")
@@ -92,6 +111,10 @@ def _errors_task(data: dict) -> list[str]:
                 errs.append(f"status=done requires '{f}'")
     if data.get("status") == "blocked" and not data.get("blocked_reason"):
         errs.append("status=blocked requires 'blocked_reason'")
+    if "iterations" in data:
+        iters = data["iterations"]
+        if not isinstance(iters, int) or iters < 1:
+            errs.append(f"iterations must be integer >= 1, got '{iters}'")
     return errs
 
 
