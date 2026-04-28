@@ -14,6 +14,8 @@ Usage (run from project root):
   python _workspace/state.py findings append --section SECTION --text TEXT
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import json
@@ -90,7 +92,7 @@ def _parse_tasks() -> tuple[list[str], list[dict]]:
         if not in_table:
             preamble.append(line)
             continue
-        if re.match(r"^\|[-| ]+\|$", line):
+        if re.match(r"^\|[-| ]+\|$", line.rstrip()):
             continue
         if not line.startswith("|"):
             continue
@@ -160,6 +162,9 @@ def cmd_tasks_collect(args) -> None:
             print(f"skip {f}: {e}", file=sys.stderr)
             continue
         tid = t.get("task_id", "")
+        if not tid:
+            print(f"skip {f}: missing task_id", file=sys.stderr)
+            continue
         if tid in row_map:
             row_map[tid]["status"] = t.get("status", row_map[tid]["status"])
             if t.get("evidence"):
