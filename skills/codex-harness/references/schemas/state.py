@@ -5,6 +5,8 @@ Usage (run from project root):
   python _workspace/state.py checkpoint get [--field KEY]
   python _workspace/state.py checkpoint update --field KEY --value VALUE
   python _workspace/state.py checkpoint status
+  python _workspace/state.py checkpoint append-stage --stage NAME [--completed-at TS] [--user-approved]
+  python _workspace/state.py checkpoint append-step  --stage NAME --step NAME --iterations N [--completed-at TS]
 
   python _workspace/state.py tasks list [--status todo|in-progress|done|blocked]
   python _workspace/state.py tasks update --id ID --status STATUS [--evidence TEXT] [--output PATH]
@@ -24,11 +26,20 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    import jsonschema
+    _HAS_JSONSCHEMA = True
+except ImportError:
+    _HAS_JSONSCHEMA = False
+
 WORKSPACE = Path(__file__).parent
 CHECKPOINT = WORKSPACE / "checkpoint.json"
 TASKS_MD = WORKSPACE / "tasks.md"
 FINDINGS_MD = WORKSPACE / "findings.md"
 TASK_GLOB = str(WORKSPACE / "tasks" / "task_*.json")
+SCHEMAS_DIR = WORKSPACE / "_schemas"
+
+_HISTORY_FIELDS = frozenset({"stage_history", "step_history"})
 
 
 def now_ts() -> str:
@@ -39,6 +50,29 @@ def atomic_write(path: Path, content: str) -> None:
     tmp = path.with_suffix(".tmp")
     tmp.write_text(content, encoding="utf-8")
     tmp.replace(path)
+
+
+def _load_schema(name: str) -> dict | None:
+    """Load a JSON schema from _workspace/_schemas/. Returns None if unavailable."""
+    path = SCHEMAS_DIR / name
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def _validate(data: dict, schema: dict, label: str) -> None:
+    """Validate data against schema. Exits with error on failure."""
+    if not _HAS_JSONSCHEMA:
+        print(f"warning: jsonschema not installed — skipping {label} validation",
+              file=sys.stderr)
+        return
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+    except jsonschema.ValidationError as e:
+        sys.exit(f"validation error ({label}): {e.message}")
 
 
 # ── checkpoint ───────────────────────────────────────────────────────────────
@@ -57,6 +91,11 @@ def cmd_checkpoint_get(args) -> None:
 
 
 def cmd_checkpoint_update(args) -> None:
+    if args.field in _HISTORY_FIELDS:
+        sys.exit(
+            f"'{args.field}' is append-only. "
+            "Use 'checkpoint append-stage' or 'checkpoint append-step'."
+        )
     if not CHECKPOINT.exists():
         sys.exit("checkpoint.json not found")
     data = json.loads(CHECKPOINT.read_text())
@@ -66,6 +105,9 @@ def cmd_checkpoint_update(args) -> None:
         value = args.value
     data[args.field] = value
     data["last_updated"] = now_ts()
+    schema = _load_schema("checkpoint.schema.json")
+    if schema:
+        _validate(data, schema, "checkpoint.json")
     atomic_write(CHECKPOINT, json.dumps(data, indent=2, ensure_ascii=False))
     print(f"checkpoint.{args.field} = {value}")
 
@@ -75,6 +117,44 @@ def cmd_checkpoint_status(args) -> None:
         sys.exit("checkpoint.json not found")
     data = json.loads(CHECKPOINT.read_text())
     print(data.get("status", "unknown"))
+
+
+def cmd_checkpoint_append_stage(args) -> None:
+    if not CHECKPOINT.exists():
+        sys.exit("checkpoint.json not found")
+    data = json.loads(CHECKPOINT.read_text())
+    entry: dict = {
+        "stage": args.stage,
+        "completed_at": args.completed_at or now_ts(),
+    }
+    if args.user_approved:
+        entry["user_approved"] = True
+    data.setdefault("stage_history", []).append(entry)
+    data["last_updated"] = now_ts()
+    schema = _load_schema("checkpoint.schema.json")
+    if schema:
+        _validate(data, schema, "checkpoint.json")
+    atomic_write(CHECKPOINT, json.dumps(data, indent=2, ensure_ascii=False))
+    print(f"stage_history ← {entry}")
+
+
+def cmd_checkpoint_append_step(args) -> None:
+    if not CHECKPOINT.exists():
+        sys.exit("checkpoint.json not found")
+    data = json.loads(CHECKPOINT.read_text())
+    entry: dict = {
+        "stage": args.stage,
+        "step": args.step,
+        "iterations": args.iterations,
+        "completed_at": args.completed_at or now_ts(),
+    }
+    data.setdefault("step_history", []).append(entry)
+    data["last_updated"] = now_ts()
+    schema = _load_schema("checkpoint.schema.json")
+    if schema:
+        _validate(data, schema, "checkpoint.json")
+    atomic_write(CHECKPOINT, json.dumps(data, indent=2, ensure_ascii=False))
+    print(f"step_history ← {entry}")
 
 
 # ── tasks ─────────────────────────────────────────────────────────────────────
@@ -153,24 +233,35 @@ def cmd_tasks_collect(args) -> None:
     if not files:
         print("no task_*.json files found")
         return
+    schema = _load_schema("task.schema.json")
     preamble, rows = _parse_tasks()
     row_map = {r["id"]: r for r in rows}
+    skipped = 0
     for f in files:
         try:
             t = json.loads(Path(f).read_text())
         except Exception as e:
             print(f"skip {f}: {e}", file=sys.stderr)
+            skipped += 1
             continue
-        tid = t.get("task_id", "")
+        tid = t.get("id", "")
         if not tid:
-            print(f"skip {f}: missing task_id", file=sys.stderr)
+            print(f"skip {f}: missing 'id' field", file=sys.stderr)
+            skipped += 1
             continue
+        if schema:
+            try:
+                _validate(t, schema, f)
+            except SystemExit as e:
+                print(f"skip {f}: {e}", file=sys.stderr)
+                skipped += 1
+                continue
         if tid in row_map:
             row_map[tid]["status"] = t.get("status", row_map[tid]["status"])
             if t.get("evidence"):
                 row_map[tid]["evidence"] = t["evidence"]
-            if t.get("artifact_path"):
-                row_map[tid]["output"] = t["artifact_path"]
+            if t.get("artifact"):
+                row_map[tid]["output"] = t["artifact"]
         else:
             row_map[tid] = {
                 "id":       tid,
@@ -178,10 +269,12 @@ def cmd_tasks_collect(args) -> None:
                 "task":     "",
                 "status":   t.get("status", "todo"),
                 "evidence": t.get("evidence", ""),
-                "output":   t.get("artifact_path", ""),
+                "output":   t.get("artifact", ""),
             }
+    collected = len(files) - skipped
     atomic_write(TASKS_MD, _render_tasks(preamble, list(row_map.values())))
-    print(f"collected {len(files)} task files → tasks.md updated")
+    print(f"collected {collected}/{len(files)} task files → tasks.md updated"
+          + (f" ({skipped} skipped)" if skipped else ""))
 
 
 # ── findings ──────────────────────────────────────────────────────────────────
@@ -244,7 +337,7 @@ def main() -> None:
     cg.add_argument("--field", default=None, metavar="KEY")
     cg.set_defaults(func=cmd_checkpoint_get)
 
-    cu = cp_sub.add_parser("update", help="Set a single checkpoint field")
+    cu = cp_sub.add_parser("update", help="Set a single field (history fields blocked)")
     cu.add_argument("--field", required=True, metavar="KEY")
     cu.add_argument("--value", required=True, metavar="VALUE",
                     help="JSON-parseable value or plain string")
@@ -252,6 +345,19 @@ def main() -> None:
 
     cs = cp_sub.add_parser("status", help="Print status field only")
     cs.set_defaults(func=cmd_checkpoint_status)
+
+    cas = cp_sub.add_parser("append-stage", help="Append entry to stage_history")
+    cas.add_argument("--stage", required=True)
+    cas.add_argument("--completed-at", default=None, metavar="YYYYMMDD_HHMMSS")
+    cas.add_argument("--user-approved", action="store_true")
+    cas.set_defaults(func=cmd_checkpoint_append_stage)
+
+    cass = cp_sub.add_parser("append-step", help="Append entry to step_history")
+    cass.add_argument("--stage", required=True)
+    cass.add_argument("--step", required=True)
+    cass.add_argument("--iterations", required=True, type=int)
+    cass.add_argument("--completed-at", default=None, metavar="YYYYMMDD_HHMMSS")
+    cass.set_defaults(func=cmd_checkpoint_append_step)
 
     # tasks
     tk = res.add_parser("tasks")
@@ -262,7 +368,7 @@ def main() -> None:
                     choices=["todo", "in-progress", "done", "blocked"])
     tl.set_defaults(func=cmd_tasks_list)
 
-    tu = tk_sub.add_parser("update", help="Update a task row")
+    tu = tk_sub.add_parser("update", help="Update a task row in tasks.md")
     tu.add_argument("--id", required=True)
     tu.add_argument("--status", required=True,
                     choices=["todo", "in-progress", "done", "blocked"])
@@ -271,7 +377,7 @@ def main() -> None:
     tu.set_defaults(func=cmd_tasks_update)
 
     tc = tk_sub.add_parser("collect",
-                           help="GLOB task_*.json and merge into tasks.md")
+                           help="GLOB task_*.json, validate, merge into tasks.md")
     tc.set_defaults(func=cmd_tasks_collect)
 
     # findings
