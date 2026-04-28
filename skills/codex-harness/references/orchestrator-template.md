@@ -81,6 +81,9 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
    | `references/schemas/agent-worker.template.toml`        | `_workspace/_schemas/agent-worker.template.toml`        |
    | `references/schemas/agent-orchestrator.template.md`    | `_workspace/_schemas/agent-orchestrator.template.md`    |
    | `references/schemas/agent-state-manager.template.toml` | `_workspace/_schemas/agent-state-manager.template.toml` |
+   | `references/schemas/state.py`                          | `_workspace/state.py`                                   |
+
+   > **`state.py` destination is `_workspace/state.py`** (not `_workspace/_schemas/`). Used internally by `@state-manager` — the orchestrator does not call it directly.
 
    > `README.md`, `models.md`, and agent templates are for reference when creating agent definitions — the workspace copy serves as the creation baseline. `models.md` is the SoT for model IDs and must always be synced.
    > **`shell cp ...` is prohibited** — the skill reference path is unreachable via shell from the runtime working directory (user project root). Always use shell `cat` + `apply_patch`.
