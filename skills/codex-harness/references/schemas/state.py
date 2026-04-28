@@ -64,6 +64,8 @@ def _errors_checkpoint(data: dict) -> list[str]:
     missing = _CHECKPOINT_REQUIRED - data.keys()
     if missing:
         errs.append(f"missing required fields: {sorted(missing)}")
+    if not data.get("plan_name"):
+        errs.append("plan_name must be a non-empty string")
     if "status" in data and data["status"] not in _CHECKPOINT_STATUS_ENUM:
         errs.append(f"status '{data['status']}' not in {sorted(_CHECKPOINT_STATUS_ENUM)}")
     if "active_pattern" in data and data["active_pattern"] not in _CHECKPOINT_PATTERN_ENUM:
@@ -75,11 +77,27 @@ def _errors_checkpoint(data: dict) -> list[str]:
         for f in ("blocked_reason", "blocked_agent"):
             if not data.get(f):
                 errs.append(f"status=blocked requires '{f}'")
+        agent = data.get("blocked_agent", "")
+        if agent and not _AGENT_RE.match(str(agent)):
+            errs.append(f"blocked_agent '{agent}' must match ^@[a-zA-Z0-9_-]+$")
+    snap = data.get("tasks_snapshot")
+    if snap is not None:
+        if not isinstance(snap.get("done"), list):
+            errs.append("tasks_snapshot.done must be an array")
+        if "current" not in snap:
+            errs.append("tasks_snapshot.current is required")
+        elif snap["current"] is not None and not isinstance(snap["current"], str):
+            errs.append("tasks_snapshot.current must be string or null")
     for i, item in enumerate(data.get("stage_history", [])):
+        if not item.get("stage"):
+            errs.append(f"stage_history[{i}].stage is required and non-empty")
         ca = item.get("completed_at", "")
         if not _TS_RE.match(str(ca)):
             errs.append(f"stage_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
     for i, item in enumerate(data.get("step_history", [])):
+        for f in ("stage", "step"):
+            if not item.get(f):
+                errs.append(f"step_history[{i}].{f} is required and non-empty")
         ca = item.get("completed_at", "")
         if not _TS_RE.match(str(ca)):
             errs.append(f"step_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
@@ -103,6 +121,9 @@ def _errors_task(data: dict) -> list[str]:
         errs.append(f"id '{data['id']}' must match task_<name>_<seq>")
     if "agent" in data and not _AGENT_RE.match(str(data["agent"])):
         errs.append(f"agent '{data['agent']}' must start with @")
+    for f in ("stage", "step"):
+        if f in data and not str(data[f]).strip():
+            errs.append(f"'{f}' must be a non-empty string")
     if "timestamp" in data and not _TS_RE.match(str(data["timestamp"])):
         errs.append(f"timestamp must match YYYYMMDD_HHMMSS, got '{data['timestamp']}'")
     if data.get("status") == "done":
