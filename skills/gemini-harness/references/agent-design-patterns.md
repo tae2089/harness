@@ -1,435 +1,435 @@
 # Subagent Orchestration Design Patterns (Gemini CLI)
 
-## 목차
+## Table of Contents
 
-1. [오케스트레이션 모드 개요](#실행-모드-오케스트레이션-orchestration)
-2. [Thread-safe Task Board 프로토콜](#thread-safe-task-board-프로토콜-병렬-쓰기-충돌-방지)
-3. [7대 핵심 아키텍처 패턴](#7대-핵심-아키텍처-패턴)
-4. [다단계 워크플로우 조합](#다단계-워크플로우-조합)
-5. [영속성 프로토콜 (Durable Execution)](#영속성-및-영구성-프로토콜-durable-execution)
-6. [도구 권한 제어 및 유형별 매핑](#도구-권한-제어-및-유형별-매핑-가이드)
-7. [데이터 브로커링 프로토콜](#데이터-브로커링-data-brokering-프로토콜)
-8. [서브에이전트 상호작용 스타일](#서브에이전트-상호작용-스타일-interaction-styles)
-9. [에이전트 분리 기준](#에이전트-분리-기준)
-10. [에이전트 정의 구조](#에이전트-정의-구조-gemini-cli-공식-포맷)
-11. [스킬 vs 에이전트 구분](#스킬-vs-에이전트-구분)
-12. [스킬 ↔ 에이전트 연결 방식](#스킬--에이전트-연결-방식)
+1. [Orchestration Mode Overview](#execution-mode-orchestration)
+2. [Thread-safe Task Board Protocol](#thread-safe-task-board-protocol-preventing-parallel-write-conflicts)
+3. [7 Core Architecture Patterns](#7-core-architecture-patterns)
+4. [Multi-stage Workflow Composition](#multi-stage-workflow-composition)
+5. [Durability Protocol (Durable Execution)](#durability-and-persistence-protocol-durable-execution)
+6. [Tool Permission Control and Type Mapping](#tool-permission-control-and-type-mapping-guide)
+7. [Data Brokering Protocol](#data-brokering-protocol)
+8. [Subagent Interaction Styles](#subagent-interaction-styles)
+9. [Agent Separation Criteria](#agent-separation-criteria)
+10. [Agent Definition Structure](#agent-definition-structure-gemini-cli-official-format)
+11. [Skill vs Agent Distinction](#skill-vs-agent-distinction)
+12. [Skill ↔ Agent Connection Methods](#skill--agent-connection-methods)
 
 ---
 
-## 실행 모드: 오케스트레이션 (Orchestration)
+## Execution Mode: Orchestration
 
-Gemini CLI에서는 메인 에이전트가 **오케스트레이터**가 되어 서브에이전트들을 조율한다. 서브에이전트 간 직접 통신은 불가능하지만, 메인 에이전트의 **중개(brokering)**와 공유 파일을 통해 고도의 협업을 구현할 수 있다.
-
-```
-[메인 에이전트 (오케스트레이터)]
-  ├── 데이터 중개 (Data Broker / findings.md)
-  ├── 상태 관리 (Atomic Task Board / tasks.md)
-  ├── 영속성 관리 (Persistence / checkpoint.json)
-  └── 공유 작업 공간 (_workspace/{plan_name}/)
-        ├── @서브에이전트-A (전문 도구 세트 + 전용 task_A.json 생성)
-        ├── @서브에이전트-B (전문 도구 세트 + 전용 task_B.json 생성)
-        └── @서브에이전트-C (전문 도구 세트 + 전용 task_C.json 생성)
-```
-
-> **Claude Code와의 차이점:** Claude Code에는 `TeamCreate`/`SendMessage`/`TaskCreate` 기반의 "에이전트 팀" 모드가 존재하여 팀원끼리 직접 대화·브로드캐스트할 수 있지만, **Gemini CLI에는 이런 팀 API가 없다**. 팀원 간 통신이 필요하면 메인 에이전트가 `read_file`로 산출물을 읽고 다음 에이전트 프롬프트에 주입하는 **파일 중개** 방식으로 대체한다. 또한 서브에이전트 호출 시 **`invoke_agent` 도구**를 사용하며, 병렬 실행이 필요한 경우 **`wait_for_previous: false`** 파라미터를 지정하여 단일 턴 내 동시 실행을 구현해야 한다. (셸 명령 자체의 백그라운드 실행은 `run_shell_command`로 별개 지원.)
-
-### 오케스트레이션 모델 선택 의사결정 트리
+In Gemini CLI, the main agent acts as the **orchestrator** and coordinates subagents. Direct communication between subagents is not possible, but high-level collaboration can be achieved through the main agent's **brokering** and shared files.
 
 ```
-에이전트가 2개 이상인가?
-├── Yes → 에이전트 간 정보 교환이 필요한가?
-│         ├── Yes → 메인이 findings.md로 중개하는 팬아웃/팬인 설계
-│         │         (교차 검증·발견 공유·실시간 피드백 품질 향상)
+[Main Agent (Orchestrator)]
+  ├── Data Brokering (Data Broker / findings.md)
+  ├── State Management (Atomic Task Board / tasks.md)
+  ├── Persistence Management (Persistence / checkpoint.json)
+  └── Shared Workspace (_workspace/{plan_name}/)
+        ├── @subagent-A (specialized toolset + creates dedicated task_A.json)
+        ├── @subagent-B (specialized toolset + creates dedicated task_B.json)
+        └── @subagent-C (specialized toolset + creates dedicated task_C.json)
+```
+
+> **Difference from Claude Code:** Claude Code has an "agent team" mode based on `TeamCreate`/`SendMessage`/`TaskCreate` that allows team members to communicate and broadcast directly, but **Gemini CLI does not have this team API**. When communication between team members is needed, the main agent reads artifacts via `read_file` and injects them into the next agent's prompt — a **file brokering** approach. Also, subagent invocation uses the **`invoke_agent` tool**, and when parallel execution is required, the **`wait_for_previous: false`** parameter must be specified to achieve concurrent execution within a single turn. (Background execution of shell commands themselves is separately supported via `run_shell_command`.)
+
+### Orchestration Model Selection Decision Tree
+
+```
+Are there 2 or more agents?
+├── Yes → Is information exchange between agents needed?
+│         ├── Yes → Fan-out/fan-in design with main brokering via findings.md
+│         │         (cross-validation, discovery sharing, real-time feedback quality improvement)
 │         │
-│         └── No → 메인이 결과만 수거하는 단순 팬아웃
-│                  (생성-검증·전문가 풀 같은 1회 전달 패턴)
+│         └── No → Simple fan-out where main only collects results
+│                  (one-pass patterns like produce-validate or expert pool)
 │
-└── No (1개)  → 단독 서브에이전트 호출
-              (단일 에이전트는 오케스트레이션 불필요)
+└── No (1 agent) → Single subagent invocation
+              (single agent does not need orchestration)
 ```
 
-> **핵심 원칙:** Gemini CLI는 "메인 에이전트가 유일한 브로커"라는 전제가 모든 패턴의 기반이다. 패턴 선택 시 "메인이 어떤 시점에 어떤 정보를 중개해야 하는가?"를 먼저 설계한다.
+> **Core Principle:** In Gemini CLI, the premise that "the main agent is the sole broker" underlies all patterns. When selecting a pattern, first design "what information must the main agent broker and at what point?"
 
 ---
 
-## Thread-safe Task Board 프로토콜 (병렬 쓰기 충돌 방지)
+## Thread-safe Task Board Protocol (Preventing Parallel Write Conflicts)
 
-여러 에이전트가 병렬로 실행될 때(`wait_for_previous: false`), 공통 파일인 `tasks.md`에 동시에 쓰기를 시도하면 데이터가 유실될 수 있다. 이를 방지하기 위해 다음 **원자적 작업 관리(Atomic Task Management)** 원칙을 따른다.
+When multiple agents run in parallel (`wait_for_previous: false`), data can be lost if they simultaneously attempt to write to the shared file `tasks.md`. To prevent this, follow these **Atomic Task Management** principles.
 
-### 1. 분할 작업 파일 (Split Task Artifacts)
+### 1. Split Task Artifacts
 
-- **원칙:** 서브에이전트는 공통 `tasks.md`를 절대 직접 수정하지 않는다.
-- **구현:** 각 에이전트는 자신의 작업 결과를 `_workspace/tasks/task_{agent_name}_{task_id}.json`과 같은 **전용 개별 파일**에 기록한다.
-- **내용:** 작업 상태(`status`), 증거(`evidence`), 산출물 경로(`path`)를 포함한다.
+- **Principle:** Subagents must never directly modify the shared `tasks.md`.
+- **Implementation:** Each agent records its task results in a **dedicated individual file** such as `_workspace/tasks/task_{agent_name}_{task_id}.json`.
+- **Contents:** Includes task status (`status`), evidence (`evidence`), and artifact path (`path`).
 
-### 2. 단일 통합자 (Sole Aggregator)
+### 2. Sole Aggregator
 
-- **원칙:** `tasks.md` 및 `checkpoint.json`의 유일한 쓰기 권한은 **메인 에이전트(오케스트레이터)**에게 있다.
-- **워크플로우:**
-  1. 메인이 병렬 에이전트들을 호출.
-  2. 에이전트들이 각자 개별 task 파일을 생성하고 종료.
-  3. 메인이 `list_directory`로 `_workspace/tasks/`를 스캔하여 모든 개별 파일을 읽음.
-  4. 메인이 읽어들인 데이터를 바탕으로 `tasks.md`를 한 번에 업데이트(Atomic Update).
+- **Principle:** The exclusive write authority over `tasks.md` and `checkpoint.json` belongs to the **main agent (orchestrator)**.
+- **Workflow:**
+  1. Main invokes parallel agents.
+  2. Agents each create their own individual task file and exit.
+  3. Main scans `_workspace/tasks/` with `list_directory` and reads all individual files.
+  4. Main performs an atomic update of `tasks.md` in one operation based on the data read.
 
 ---
 
-## 7대 핵심 아키텍처 패턴
+## 7 Core Architecture Patterns
 
-### 1. 파이프라인 (Pipeline) — 순차 의존 작업
+### 1. Pipeline — Sequentially Dependent Tasks
 
-이전 단계의 산출물을 다음 단계의 입력으로 사용하는 흐름.
-
-```
-[분석] → [설계] → [구현] → [검증]
-```
-
-- **조율:** 순차 호출. N번째 에이전트 완료 후 메인이 결과를 `findings.md`에 요약 → (N+1)번째 에이전트 프롬프트에 주입.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** `[Tool: invoke_agent(agent_name="analyst", wait_for_previous=true)]` `@{analyst}`님, 요구사항을 분석하여 `_workspace/{plan_name}/01_reqs.md`에 저장하세요. 필요시 `activate_skill('context7-docs')`를 활용해 최신 명세를 확인하세요.
-  > (완료 후)
-  > **메인:** `[Tool: invoke_agent(agent_name="coder", wait_for_previous=true)]` `@{coder}`님, `_workspace/{plan_name}/01_reqs.md`를 읽고 `findings.md`의 [핵심 제약]을 준수하여 구현하세요. 결과는 `_workspace/{plan_name}/02_code.md`에 저장하세요.
-- **적합:** 소설 집필(세계관→캐릭터→플롯→집필→편집), 설계→구현→검증 흐름.
-- **주의:** 병목이 전체 파이프라인을 지연시킴. 각 단계를 가능한 독립적으로 설계하고, 연속 단계가 매 시점 필요한 "진짜 의존성"인지 점검할 것. 단순 순서 선호로 파이프라인을 고르면 병렬화 기회를 놓친다.
-
-### 2. 팬아웃/팬인 (Fan-out/Fan-in) — 병렬 조사 및 통합
-
-독립적인 작업을 동시에 수행하고 결과를 하나로 합침.
+A flow where the output of the previous stage is used as input to the next stage.
 
 ```
-         ┌→ [전문가A] ─┐
-[분배] → ├→ [전문가B] ─┼→ [통합]
-         └→ [전문가C] ─┘
+[Analyze] → [Design] → [Implement] → [Validate]
 ```
 
-- **조율:** 단일 응답 턴에서 `@A`, `@B`, `@C`를 연속 호출 → 각자 `_workspace/{plan_name}/` 하위에 산출물 저장 → 메인이 통합 에이전트 호출 시 모든 산출물 경로를 프롬프트에 주입.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** (단일 턴 내 배치 호출)
+- **Coordination:** Sequential invocation. After the Nth agent completes, the main summarizes results in `findings.md` → injects into the (N+1)th agent's prompt.
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** `[Tool: invoke_agent(agent_name="analyst", wait_for_previous=true)]` `@{analyst}`, analyze the requirements and save them to `_workspace/{plan_name}/01_reqs.md`. Use `activate_skill('context7-docs')` if needed to check the latest specs.
+  > (After completion)
+  > **Main:** `[Tool: invoke_agent(agent_name="coder", wait_for_previous=true)]` `@{coder}`, read `_workspace/{plan_name}/01_reqs.md` and implement while adhering to the [Key Constraints] in `findings.md`. Save results to `_workspace/{plan_name}/02_code.md`.
+- **Suitable for:** Novel writing (worldbuilding→characters→plot→writing→editing), design→implementation→validation flows.
+- **Note:** Bottlenecks delay the entire pipeline. Design each stage as independently as possible and verify whether each consecutive stage is a "true dependency" required at every point. Choosing pipeline merely for sequential preference misses parallelization opportunities.
+
+### 2. Fan-out/Fan-in — Parallel Investigation and Integration
+
+Independently perform tasks simultaneously and merge results into one.
+
+```
+         ┌→ [ExpertA] ─┐
+[Distribute] → ├→ [ExpertB] ─┼→ [Integrate]
+         └→ [ExpertC] ─┘
+```
+
+- **Coordination:** Invoke `@A`, `@B`, `@C` consecutively in a single response turn → each saves artifacts under `_workspace/{plan_name}/` → when main invokes the integration agent, inject all artifact paths into the prompt.
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** (batch invocation within a single turn)
   >
-  > 1. `[Tool: invoke_agent(agent_name="researcher-market", wait_for_previous=false)]` `@{researcher-market}`님, 시장 트렌드를 조사해 `_workspace/{plan_name}/mkt.md`에 기록하세요.
-  > 2. `[Tool: invoke_agent(agent_name="researcher-tech", wait_for_previous=false)]` `@{researcher-tech}`님, 기술 타당성을 조사해 `_workspace/{plan_name}/tech.md`에 기록하세요.
-  >    (모두 완료 후)
-  >    **메인:** `[Tool: invoke_agent(agent_name="strategist", wait_for_previous=true)]` `@{strategist}`님, `_workspace/{plan_name}/mkt.md`와 `_workspace/{plan_name}/tech.md`를 모두 읽고 `findings.md`에 상충하는 데이터가 있다면 해결하여 최종 전략을 수립하세요.
-- **적합:** 종합 리서치(공식/미디어/커뮤니티/배경 동시 조사 → 통합), 멀티 모듈 개발.
-- **주의:** 통합 단계의 품질이 전체 품질을 결정. 전문가 간 발견이 **상충**할 수 있으므로 메인이 `findings.md`에 [데이터 충돌] 섹션을 두고 통합 에이전트가 반드시 해결하도록 지시.
+  > 1. `[Tool: invoke_agent(agent_name="researcher-market", wait_for_previous=false)]` `@{researcher-market}`, research market trends and record them in `_workspace/{plan_name}/mkt.md`.
+  > 2. `[Tool: invoke_agent(agent_name="researcher-tech", wait_for_previous=false)]` `@{researcher-tech}`, research technical feasibility and record it in `_workspace/{plan_name}/tech.md`.
+  >    (After all complete)
+  >    **Main:** `[Tool: invoke_agent(agent_name="strategist", wait_for_previous=true)]` `@{strategist}`, read both `_workspace/{plan_name}/mkt.md` and `_workspace/{plan_name}/tech.md`, resolve any conflicting data noted in the [Data Conflicts] section of `findings.md`, and establish the final strategy.
+- **Suitable for:** Comprehensive research (simultaneous investigation of official docs/media/community/background → integration), multi-module development.
+- **Note:** The quality of the integration stage determines overall quality. Since discoveries across experts may **conflict**, the main should maintain a [Data Conflicts] section in `findings.md` and instruct the integration agent to resolve it.
 
-### 3. 전문가 풀 (Expert Pool) — 상황별 전문가 선택
+### 3. Expert Pool — Situation-based Expert Selection
 
-사용자 요청의 성격에 따라 가장 적합한 서브에이전트를 선택 호출.
-
-```
-[라우터] → { 전문가A | 전문가B | 전문가C }
-```
-
-- **조율:** 메인 에이전트가 입력을 분류한 후 해당 영역의 에이전트만 호출.
-- **호출 방식:** 항상 `wait_for_previous=true` (순차). 복수 전문가를 동시 호출하지 않는다.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** (사용자 요청 "React 성능 개선")
-  > **메인:** `[Tool: invoke_agent(agent_name="perf-expert", wait_for_previous=true)]` `@{perf-expert}`님, 현재 코드를 분석하여 병목 지점을 찾으세요. `@{security-expert}`님은 이번 작업에서 제외됩니다.
-- **적합:** 다국어 지원(언어별 네이티브 에이전트), 코드 리뷰(보안/성능/아키텍처 전문가 선택), 기술 스택별 특화 리뷰.
-- **주의:** 라우터(메인)의 분류 정확도가 핵심. 분류가 모호하면 `ask_user`로 명확화하거나, 두 전문가를 동시 호출해 교차 검증.
-
-### 4. 생성-검증 (Producer-Reviewer) — 품질 보증 루프
-
-생성자와 검증자가 루프를 돌며 산출물을 정제.
+Select and invoke the most suitable subagent based on the nature of the user's request.
 
 ```
-[생성] → [검증] → (문제시) → [생성] 재실행
+[Router] → { ExpertA | ExpertB | ExpertC }
 ```
 
-- **조율:** 메인이 생성자 호출 → 산출물 읽고 `findings.md`에 요약 → 검증자 호출(산출물 경로 주입) → 검증 리포트 읽고 이슈 있으면 생성자 재호출(리포트 주입).
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** `[Tool: invoke_agent(agent_name="writer", wait_for_previous=true)]` `@{writer}`님, 초안을 작성하세요.
-  > **메인:** `[Tool: invoke_agent(agent_name="editor", wait_for_previous=true)]` `@{editor}`님, 초안을 리뷰하고 `activate_skill('qa-standard')`에 따라 수정 제안을 `_workspace/{plan_name}/edit_notes.md`에 남기세요.
-  > (리뷰 결과 'Fail'인 경우)
-  > **메인:** `[Tool: invoke_agent(agent_name="writer", wait_for_previous=true)]` `@{writer}`님, `_workspace/{plan_name}/edit_notes.md`의 피드백을 반영해 초안을 수정하세요. (최대 2회 재시도(총 3회))
-- **적합:** 웹툰(artist→reviewer→재생성), 고품질 코드 작성, 기술 문서 교정.
-- **주의:** **무한 루프 방지를 위해 최대 2회 재시도(총 3회) 설정 필수.** 3회 후에도 실패 시 메인이 `ask_user`로 사람에게 결정권을 넘긴다.
+- **Coordination:** The main agent classifies input and then invokes only the agent for that domain.
+- **Invocation style:** Always `wait_for_previous=true` (sequential). Do not invoke multiple experts simultaneously.
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** (user request: "React performance improvement")
+  > **Main:** `[Tool: invoke_agent(agent_name="perf-expert", wait_for_previous=true)]` `@{perf-expert}`, analyze the current code and identify bottlenecks. `@{security-expert}` is excluded from this task.
+- **Suitable for:** Multilingual support (native agents per language), code review (selecting security/performance/architecture experts), technology stack-specific review.
+- **Note:** The classification accuracy of the router (main) is critical. If classification is ambiguous, use `ask_user` for clarification, or invoke two experts simultaneously for cross-validation.
 
-### 5. 감독자 (Supervisor) — 동적 작업 할당
+### 4. Producer-Reviewer — Quality Assurance Loop
 
-메인 에이전트가 런타임에 작업 부하와 의존성을 분석하여 작업을 배분.
+Producer and reviewer loop to refine the output.
 
 ```
-         ┌→ [워커A]
-[감독자] ─┼→ [워커B]    ← 감독자가 상태를 보고 동적 분배
-         └→ [워커C]
+[Produce] → [Review] → (if issues) → [Produce] re-run
 ```
 
-- **조율:** `tasks.md`를 활용한 상태 관리. 메인이 `Todo` 목록을 쪼개 각 워커에게 배치 할당, 워커 완료 후 **반드시 `Evidence` 또는 `qa_report.md`를 통해 성공 여부를 검증**한 뒤 `Done`으로 갱신하고 다음 배치를 할당한다.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** `tasks.md`에 50개의 마이그레이션 작업이 있습니다.
+- **Coordination:** Main invokes producer → reads artifact and summarizes in `findings.md` → invokes reviewer (inject artifact path) → reads review report and re-invokes producer if there are issues (inject report).
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** `[Tool: invoke_agent(agent_name="writer", wait_for_previous=true)]` `@{writer}`, write a draft.
+  > **Main:** `[Tool: invoke_agent(agent_name="editor", wait_for_previous=true)]` `@{editor}`, review the draft and leave revision suggestions in `_workspace/{plan_name}/edit_notes.md` according to `activate_skill('qa-standard')`.
+  > (If review result is 'Fail')
+  > **Main:** `[Tool: invoke_agent(agent_name="writer", wait_for_previous=true)]` `@{writer}`, revise the draft incorporating feedback from `_workspace/{plan_name}/edit_notes.md`. (Maximum 2 retries, 3 total)
+- **Suitable for:** Webtoons (artist→reviewer→regenerate), high-quality code writing, technical document proofreading.
+- **Note:** **A maximum of 2 retries (3 total) is mandatory to prevent infinite loops.** After 3 attempts, if still failing, the main uses `ask_user` to hand the decision to a human.
+
+### 5. Supervisor — Dynamic Task Assignment
+
+The main agent analyzes workload and dependencies at runtime to distribute tasks.
+
+```
+         ┌→ [WorkerA]
+[Supervisor] ─┼→ [WorkerB]    ← Supervisor dynamically distributes based on status
+         └→ [WorkerC]
+```
+
+- **Coordination:** State management via `tasks.md`. Main splits the `Todo` list into batches and assigns them to each worker. After worker completion, **verify success via `Evidence` or `qa_report.md`**, then update to `Done` and assign the next batch.
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** There are 50 migration tasks in `tasks.md`.
   >
-  > 1. `[Tool: invoke_agent(agent_name="worker-1", wait_for_previous=false)]` `@{worker-1}`님, 작업 ID 1~10번을 수행하세요.
-  > 2. `[Tool: invoke_agent(agent_name="worker-2", wait_for_previous=false)]` `@{worker-2}`님, 작업 ID 11~20번을 수행하세요.
-  >    (완료 보고가 오면)
-  >    **메인:** `@{worker-1}`님, 산출물과 테스트 로그(`Evidence`)를 확인했습니다. 통과되었으므로 `Done` 처리하고, 이제 21~30번 작업을 수행하세요. **실패한 작업이 있다면 스킵하지 말고 즉시 중단하여 해결책을 보고하세요.**
-- **적합:** 대규모 파일 마이그레이션, 대량 데이터 처리.
-- **팬아웃과의 차이:** 팬아웃은 사전에 작업 고정 분배, 감독자는 진행 상황을 보며 동적 조정.
-- **주의:** 감독자(메인)가 병목이 되지 않도록 위임 단위를 충분히 크게 설정(파일 1개씩 ×100회 호출 < 파일 10개씩 ×10회 호출).
+  > 1. `[Tool: invoke_agent(agent_name="worker-1", wait_for_previous=false)]` `@{worker-1}`, perform task IDs 1–10.
+  > 2. `[Tool: invoke_agent(agent_name="worker-2", wait_for_previous=false)]` `@{worker-2}`, perform task IDs 11–20.
+  >    (When completion report arrives)
+  >    **Main:** `@{worker-1}`, I have reviewed the artifacts and test logs (`Evidence`). Since they passed, mark them as `Done` and now perform tasks 21–30. **If any task fails, do not skip it — stop immediately and report the solution.**
+- **Suitable for:** Large-scale file migration, bulk data processing.
+- **Difference from Fan-out:** Fan-out pre-assigns fixed tasks; Supervisor dynamically adjusts while monitoring progress.
+- **Note:** Set the delegation unit large enough so the Supervisor (main) does not become a bottleneck (1 file × 100 calls < 10 files × 10 calls).
 
-### 6. 계층적 위임 (Hierarchical Delegation) — 재귀적 문제 분해
+### 6. Hierarchical Delegation — Recursive Problem Decomposition
 
-상위 에이전트가 하위 에이전트에 재귀적으로 위임. 복잡한 문제를 단계적으로 분해.
+Upper-level agent recursively delegates to lower-level agents. Progressively decomposes complex problems.
 
 ```
-[총괄] → [팀장A] → [실무자A1]
-                  → [실무자A2]
-       → [팀장B] → [실무자B1]
+[Overall] → [Team Lead A] → [Worker A1]
+                          → [Worker A2]
+           → [Team Lead B] → [Worker B1]
 ```
 
-- **조율:** 중첩된 에이전트 호출 및 컨텍스트 요약 전달. 팀장 에이전트는 자신이 받은 지시를 쪼개 실무자 에이전트를 다시 호출한다.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** `[Tool: invoke_agent(agent_name="frontend-lead", wait_for_previous=true)]` `@{frontend-lead}`님, UI 시스템 구축을 총괄하세요.
-  > **@{frontend-lead}:** (프롬프트 내에서) `[Tool: invoke_agent(agent_name="component-coder", wait_for_previous=false)]` `@{component-coder}`님은 버튼 컴포넌트를, `[Tool: invoke_agent(agent_name="style-coder", wait_for_previous=false)]` `@{style-coder}`님은 테마 시스템을 구현하게 지시하겠습니다.
-- **적합:** 풀스택 애플리케이션 개발(총괄→프론트엔드팀장→UI/로직/테스트 + 백엔드팀장→API/DB/테스트), 복잡한 시스템 아키텍처 설계.
-- **주의:** 깊이 **3단계 이상은 지연과 컨텍스트 손실이 커지므로 2단계 이내 권장**. 팀장 에이전트는 실무자 산출물을 요약해 총괄에게 전달하되, 원본은 `_workspace/{plan_name}/{team}/`에 보존.
+- **Coordination:** Nested agent invocations with context summary passing. The team lead agent breaks down the instructions it received and re-invokes worker agents.
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** `[Tool: invoke_agent(agent_name="frontend-lead", wait_for_previous=true)]` `@{frontend-lead}`, oversee the UI system construction.
+  > **@{frontend-lead}:** (within its prompt) `[Tool: invoke_agent(agent_name="component-coder", wait_for_previous=false)]` I will instruct `@{component-coder}` to implement the button component and `[Tool: invoke_agent(agent_name="style-coder", wait_for_previous=false)]` `@{style-coder}` to implement the theme system.
+- **Suitable for:** Full-stack application development (overall→frontend lead→UI/logic/tests + backend lead→API/DB/tests), complex system architecture design.
+- **Note:** **Depth beyond 3 levels increases delay and context loss significantly — keep to 2 levels or fewer.** Team lead agents should summarize worker artifacts for the overall lead, while preserving originals in `_workspace/{plan_name}/{team}/`.
 
-### 7. 핸드오프 (Handoff) — 에이전트 주도 위임
+### 7. Handoff — Agent-driven Delegation
 
-메인이 모든 경로를 미리 결정하는 대신, 실무 에이전트가 작업을 수행한 뒤 **"다음 단계에 가장 적합한 전문가"**를 오케스트레이터에게 추천하여 제어권을 넘기는 방식.
+Instead of the main deciding all paths in advance, the working agent, after completing its task, recommends **"the most suitable expert for the next step"** to the orchestrator, passing over control.
 
-- **조율:** 에이전트가 산출물 끝에 `[NEXT_AGENT: @expert-name]` 키워드와 추천 사유를 남기면, 오케스트레이터가 이를 파싱하여 다음 에이전트를 동적으로 소환.
-- **라우팅 원리:** 에이전트는 프로젝트 내의 다른 에이전트 목록(description 기반)을 참고하여 추천을 수행.
-- **사용 예시 (오케스트레이터의 호출 방식):**
-  > **메인:** `[Tool: invoke_agent(agent_name="log-analyzer", wait_for_previous=true)]` `@{log-analyzer}`님, 에러 로그를 분석하고 근본 원인을 파악하세요. 전문 처리가 필요하면 산출물 끝에 `[NEXT_AGENT: @{agent-name}] 사유: {구체적 이유}`를 반드시 남기세요.
-  > (log-analyzer 완료, 산출물 끝: `[NEXT_AGENT: @security-patcher] 사유: JWT 검증 누락으로 인한 인증 취약점 발견`)
-  > **메인:** (키워드 파싱 후) `[Tool: invoke_agent(agent_name="security-patcher", wait_for_previous=true)]` `@{security-patcher}`님, `_workspace/{plan_name}/log_analysis.md`를 읽고 식별된 인증 취약점을 패치하세요.
-- **적합:** 탐색적 디버깅(로그 분석 → 재현 시도 → 수정 전문가 핸드오프), 복잡한 지원 프로세스.
-- **주의:** 순환 핸드오프(A→B→A) 무한 루프 방지 필수 — 오케스트레이터는 호출 이력을 추적하고 동일 에이전트가 이미 실행됐으면 재소환하지 않는다. 핸드오프 연쇄가 3단계 이상 발생하거나 추천 대상 에이전트가 없으면 `ask_user`로 결정권 이전. 감지 pseudocode: `references/orchestrator-procedures.md` — "handle_handoff" 참조.
-
----
-
-## 다단계 워크플로우 조합
-
-7대 기본 패턴은 **Step 단위로 조합**한다. Stage-Step 구조로 선언하면 각 Step가 독립 패턴을 가져 정밀한 다단계 워크플로우를 구성할 수 있다. 상세: `references/stage-step-guide.md`.
-
-| 워크플로우 유형               | Step 구성                                                                             | 예시                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **병렬 수집 → 검토 루프**     | Stage 1 / Step 1: fan_out_fan_in → Stage 2 / Step 1: producer_reviewer                | 다국어 번역 — 4개 언어 병렬 번역 → 네이티브 리뷰어 검수 루프 |
-| **순차 설계 → 병렬 검증**     | Stage 1 / Step 1-N: pipeline → Stage 2 / Step 1: fan_out_fan_in                       | 요구사항·설계·API 설계(순차) → 보안·성능·호환성 검증(병렬)   |
-| **분류 → 전문가 분석 → 검토** | Stage 1 / Step 1: expert_pool, Step 2: pipeline → Stage 2 / Step 1: producer_reviewer | 이슈 분류 → 전문가 분석 → 보고서 검토                        |
-
-### 다단계 워크플로우 조율 포인트 (Gemini CLI)
-
-| 시나리오               | 브로커링 전략                                                                        | 주의                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| **리서치 + 분석**      | 조사자들 산출물을 `findings.md`에 실시간 병합, 상충 발견은 [데이터 충돌] 섹션에 기록 | 통합 에이전트가 충돌을 해결하지 못하면 `ask_user` 호출                                |
-| **설계 + 구현 + 검증** | 설계 산출물 → 구현 에이전트 프롬프트 주입 → 구현 결과 → 검증 에이전트 프롬프트 주입  | 각 단계 간 **파일 경로만 전달**하지 말고, **핵심 제약**을 `findings.md`에 발췌해 주입 |
-| **감독자 + 워커**      | `tasks.md`로 상태 동기화, 워커는 자신의 할당 task만 읽음                             | 동시 할당된 여러 워커가 같은 파일을 수정하지 않도록 감독자가 파일 단위로 분할         |
-| **생성 + 검증**        | 생성 → 검증 리포트(`qa_report.md`) → 재생성 시 리포트를 프롬프트에 주입              | 최대 2회 재시도(총 3회), 초과 시 ask_user                                             |
+- **Coordination:** The agent leaves a `[NEXT_AGENT: @expert-name]` keyword and reason for recommendation at the end of its artifact, and the orchestrator parses this to dynamically summon the next agent.
+- **Routing Principle:** The agent makes its recommendation by referencing the list of other agents in the project (based on their descriptions).
+- **Usage Example (orchestrator invocation style):**
+  > **Main:** `[Tool: invoke_agent(agent_name="log-analyzer", wait_for_previous=true)]` `@{log-analyzer}`, analyze the error logs and identify the root cause. If specialized processing is needed, you must leave `[NEXT_AGENT: @{agent-name}] Reason: {specific reason}` at the end of the artifact.
+  > (log-analyzer completes, end of artifact: `[NEXT_AGENT: @security-patcher] Reason: Authentication vulnerability found due to missing JWT validation`)
+  > **Main:** (after parsing keyword) `[Tool: invoke_agent(agent_name="security-patcher", wait_for_previous=true)]` `@{security-patcher}`, read `_workspace/{plan_name}/log_analysis.md` and patch the identified authentication vulnerability.
+- **Suitable for:** Exploratory debugging (log analysis → reproduction attempt → handoff to fix expert), complex support processes.
+- **Note:** Circular handoff (A→B→A) infinite loop prevention is mandatory — the orchestrator tracks the call history and does not re-summon an agent that has already executed. If handoff chains reach 3 or more stages, or if the recommended target agent does not exist, hand the decision to the user via `ask_user`. Detection pseudocode: see `references/orchestrator-procedures.md` — "handle_handoff".
 
 ---
 
-## 영속성 및 영구성 프로토콜 (Durable Execution)
+## Multi-stage Workflow Composition
 
-모든 오케스트레이션 워크플로우는 네트워크 실패, 타임아웃, 모델 에러에 대비해 **영속성(Persistence)**을 가져야 한다.
+The 7 basic patterns are **combined at the Step level**. Declaring a Stage-Step structure allows each Step to have an independent pattern, enabling precise multi-stage workflow composition. Details: `references/stage-step-guide.md`.
 
-### 1. 체크포인트 프로토콜 (`checkpoint.json`)
+| Workflow Type                       | Step Composition                                                                                   | Example                                                                    |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Parallel Collection → Review Loop**   | Stage 1 / Step 1: fan_out_fan_in → Stage 2 / Step 1: producer_reviewer                            | Multilingual translation — parallel translation in 4 languages → native reviewer loop |
+| **Sequential Design → Parallel Validation** | Stage 1 / Step 1-N: pipeline → Stage 2 / Step 1: fan_out_fan_in                               | Requirements·design·API design (sequential) → security·performance·compatibility validation (parallel) |
+| **Classify → Expert Analysis → Review** | Stage 1 / Step 1: expert_pool, Step 2: pipeline → Stage 2 / Step 1: producer_reviewer          | Issue classification → expert analysis → report review                     |
 
-오케스트레이터는 매 에이전트 작업 완료 시 `_workspace/checkpoint.json`을 생성하거나 갱신한다.
+### Multi-stage Workflow Coordination Points (Gemini CLI)
 
-- **필수 포함 데이터:**
-  - `last_successful_step`: 마지막으로 성공한 Step 번호 또는 에이전트명.
-  - `tasks_snapshot`: `tasks.md`의 현재 상태 데이터 요약.
-  - `shared_variables`: 에이전트 간 공유된 핵심 상수나 변수 값.
-- **장점:** 실행 중 중단되더라도 Step 0에서 체크포인트를 감지하여 **실패 지점부터 즉시 재개** 가능하다.
-
-### 2. 멱등성(Idempotency) 보장 원칙
-
-- **중복 방지:** 각 에이전트는 실행 시작 시 자신의 타겟 산출물 파일이 이미 존재하는지 확인한다.
-- **상태 기반 건너뛰기:** 내용이 최신이고 수정이 필요 없다면 작업을 수행하지 않고 즉시 완료 신호를 보내 토큰 낭비를 방지한다.
-- **원자적 쓰기:** 파일 작성 완료 전에는 `tasks.md`를 `Done`으로 변경하지 않는다.
+| Scenario                   | Brokering Strategy                                                                                       | Note                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Research + Analysis**    | Merge researcher artifacts into `findings.md` in real time; record conflicting discoveries in [Data Conflicts] section | If the integration agent cannot resolve conflicts, call `ask_user`                   |
+| **Design + Implementation + Validation** | Design artifact → inject into implementation agent prompt → implementation result → inject into validation agent prompt | Between each stage, do not **just pass file paths** — extract **key constraints** into `findings.md` and inject them |
+| **Supervisor + Worker**    | Synchronize state via `tasks.md`; each worker reads only its assigned tasks                              | Supervisor must partition files so multiple simultaneously assigned workers do not modify the same file |
+| **Produce + Validate**     | Produce → validation report (`qa_report.md`) → inject report into prompt for regeneration               | Maximum 2 retries (3 total); exceed → ask_user                                              |
 
 ---
 
-## 도구 권한 제어 및 유형별 매핑 가이드
+## Durability and Persistence Protocol (Durable Execution)
 
-에이전트 정의 시 `tools` 배열을 엄격히 제한하여 안정성과 효율성을 높인다. **`tools: ["*"]` 사용은 절대 금지**하며, 역할에 최적화된 도구만 할당한다.
+All orchestration workflows must have **persistence** to handle network failures, timeouts, and model errors.
 
-> **공통 규칙(모든 에이전트 필수 포함):**
+### 1. Checkpoint Protocol (`checkpoint.json`)
+
+The orchestrator creates or updates `_workspace/checkpoint.json` upon completion of each agent task.
+
+- **Required data:**
+  - `last_successful_step`: The step number or agent name of the last successfully completed step.
+  - `tasks_snapshot`: A summary of the current state data from `tasks.md`.
+  - `shared_variables`: Key constants or variable values shared between agents.
+- **Benefit:** Even if execution is interrupted, the checkpoint can be detected at Step 0 to **resume immediately from the point of failure**.
+
+### 2. Idempotency Guarantee Principles
+
+- **Duplicate prevention:** Each agent checks at the start of execution whether its target artifact file already exists.
+- **Status-based skip:** If the content is current and no modifications are needed, the agent does not perform the task and immediately sends a completion signal to prevent token waste.
+- **Atomic write:** `tasks.md` is not updated to `Done` until the file write is complete.
+
+---
+
+## Tool Permission Control and Type Mapping Guide
+
+When defining agents, strictly restrict the `tools` array to improve stability and efficiency. **Using `tools: ["*"]` is strictly prohibited** — assign only tools optimized for the role.
+
+> **Common rules (required for all agents):**
 >
-> - `ask_user`: 모호한 지시·누락된 파라미터·데이터 충돌 시 추측하지 않고 사용자에게 확인 질의.
-> - `activate_skill`: `.gemini/skills/` 아래 절차 스킬(방법론·체크리스트·프로토콜)을 런타임에 로드·실행하기 위해 필수. 스킬을 호출하지 않는 에이전트는 원칙적으로 존재하지 않는다.
+> - `ask_user`: When instructions are ambiguous, parameters are missing, or data conflicts arise — do not guess; query the user for confirmation.
+> - `activate_skill`: Required to load and execute procedural skills (methodologies, checklists, protocols) under `.gemini/skills/` at runtime. In principle, no agent exists that does not call a skill.
 
-### 에이전트 유형별 표준 도구 세트
+### Standard Tool Sets by Agent Type
 
-| 에이전트 유형 | 핵심 역할                 | 권장 도구 세트                                                                                                                                          | 관련 MCP/Built-in         |
-| :------------ | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------ |
-| **Analyst**   | 정보 수집, 분석, 리서치   | `ask_user`, `activate_skill`, `read_file`, `read_many_files`, `list_directory`, `grep_search`, `google_web_search`, `web_fetch`                         | Search, Browser, Context7 |
-| **Architect** | 구조 설계, 계획 수립      | `ask_user`, `activate_skill`, `read_file`, `list_directory`, `glob`, `grep_search`, `enter_plan_mode`, `exit_plan_mode`                                 | Planning, CCG             |
-| **Coder**     | 코드 작성, 수정, 리팩토링 | `ask_user`, `activate_skill`, `read_file`, `write_file`, `replace`, `run_shell_command` (format/lint)                                                   | Filesystem, Lang-specific |
-| **Reviewer**  | 품질 검수, 테스트, QA     | `ask_user`, `activate_skill`, `read_file`, `read_many_files`, `grep_search`, `run_shell_command` (test execution, 장기 프로세스는 백그라운드 옵션 활용) | Testing, Linter           |
-| **Operator**  | 인프라 관리, 배포, CICD   | `ask_user`, `activate_skill`, `run_shell_command`, `k8s_*`, `terraform_*`                                                                               | K8s, Terraform, CLI       |
+| Agent Type    | Core Role                         | Recommended Tool Set                                                                                                                                                    | Related MCP/Built-in         |
+| :------------ | :-------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
+| **Analyst**   | Information gathering, analysis, research | `ask_user`, `activate_skill`, `read_file`, `read_many_files`, `list_directory`, `grep_search`, `google_web_search`, `web_fetch`                                | Search, Browser, Context7    |
+| **Architect** | Structure design, planning        | `ask_user`, `activate_skill`, `read_file`, `list_directory`, `glob`, `grep_search`, `enter_plan_mode`, `exit_plan_mode`                                                 | Planning, CCG                |
+| **Coder**     | Code writing, modification, refactoring | `ask_user`, `activate_skill`, `read_file`, `write_file`, `replace`, `run_shell_command` (format/lint)                                                             | Filesystem, Lang-specific    |
+| **Reviewer**  | Quality review, testing, QA       | `ask_user`, `activate_skill`, `read_file`, `read_many_files`, `grep_search`, `run_shell_command` (test execution; use background option for long-running processes)     | Testing, Linter              |
+| **Operator**  | Infrastructure management, deployment, CICD | `ask_user`, `activate_skill`, `run_shell_command`, `k8s_*`, `terraform_*`                                                                                    | K8s, Terraform, CLI          |
 
-### 특수 목적 도구
+### Special Purpose Tools
 
-Gemini CLI에서 확인된 특수 도구. 일반 워커 에이전트에는 부여하지 않고 필요한 역할에만 선택적으로 허용한다.
+Special tools confirmed in Gemini CLI. Do not grant to general worker agents — allow selectively only for roles that need them.
 
-| 도구                | 용도                                        | 권장 에이전트                                                                  |
-| ------------------- | ------------------------------------------- | ------------------------------------------------------------------------------ |
-| `invoke_agent`      | 서브에이전트 호출                           | 오케스트레이터, Supervisor, Hierarchical 팀장(Mid-level) 전용 — 일반 워커 금지 |
-| `save_memory`       | 세션 간 핵심 정보 영속화                    | 오케스트레이터 (체크포인트 보완용)                                             |
-| `write_todos`       | 내장 할 일 목록 관리 (`tasks.md` 경량 대안) | 단일 에이전트 작업 시 오케스트레이터                                           |
-| `get_internal_docs` | Gemini CLI 내부 문서 조회                   | Analyst, Architect                                                             |
+| Tool                | Purpose                                         | Recommended Agents                                                                           |
+| ------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `invoke_agent`      | Invoke subagents                                | Orchestrator, Supervisor, Hierarchical team lead (mid-level) only — prohibited for general workers |
+| `save_memory`       | Persist key information across sessions         | Orchestrator (as checkpoint supplement)                                                      |
+| `write_todos`       | Built-in to-do list management (lightweight alternative to `tasks.md`) | Orchestrator for single-agent tasks                              |
+| `get_internal_docs` | Query Gemini CLI internal documentation         | Analyst, Architect                                                                           |
 
-> **주의:** `save_memory`는 `checkpoint.json` 파일 기반 영속성을 **대체하지 않는다**. 세션 재개 시 파일이 더 신뢰성 있다. `save_memory`는 에이전트 페르소나·공유 상수처럼 파일로 관리하기 부담스러운 소량 데이터에만 사용한다.
+> **Note:** `save_memory` does **not replace** file-based persistence via `checkpoint.json`. Files are more reliable when resuming a session. Use `save_memory` only for small amounts of data that are burdensome to manage as files, such as agent personas and shared constants.
 
-### MCP 도구 매핑 예시
+### MCP Tool Mapping Examples
 
-- **GitHub 전문 에이전트:** `mcp_github_*` 도구들만 할당하여 이슈 관리 및 PR 처리 전담.
-- **인프라 전문가:** `mcp_kubernetes_*` 또는 `mcp_terraform_*` 도구들로 권한 제한.
-- **문서화 전문가:** `web_fetch`와 `read_file` 위주로 할당하여 지식 베이스 구축.
+- **GitHub specialist agent:** Assign only `mcp_github_*` tools for dedicated issue management and PR handling.
+- **Infrastructure specialist:** Restrict permissions to `mcp_kubernetes_*` or `mcp_terraform_*` tools.
+- **Documentation specialist:** Assign primarily `web_fetch` and `read_file` for knowledge base construction.
 
-### temperature / max_turns 권장
+### temperature / max_turns Recommendations
 
-| 역할                    | temperature | max_turns | 이유                             |
-| ----------------------- | ----------- | --------- | -------------------------------- |
-| Analyst, Architect      | 0.3 ~ 0.5   | 10 ~ 15   | 탐색성 중간, 근거 수집 반복 필요 |
-| Coder                   | 0.2         | 15 ~ 20   | 결정적 출력, 수정 반복 허용      |
-| Reviewer (QA Inspector) | 0.2         | 8 ~ 10    | 재현성·일관성 최우선             |
-| Operator                | 0.1 ~ 0.2   | 6 ~ 8     | 낮은 변동성, 안전 우선           |
+| Role                    | temperature | max_turns | Reason                                       |
+| ----------------------- | ----------- | --------- | -------------------------------------------- |
+| Analyst, Architect      | 0.3 ~ 0.5   | 10 ~ 15   | Moderate explorability, needs iterative evidence gathering |
+| Coder                   | 0.2         | 15 ~ 20   | Deterministic output, allows repeated revisions |
+| Reviewer (QA Inspector) | 0.2         | 8 ~ 10    | Reproducibility and consistency are top priority |
+| Operator                | 0.1 ~ 0.2   | 6 ~ 8     | Low variability, safety first                |
 
-### model 선택 가이드
+### Model Selection Guide
 
-| 에이전트 역할 | 모델 티어 | 실제 ID 확인 위치 |
-|--------------|---------|-----------------|
-| 오케스트레이터, Architect | **pro 티어** | `references/schemas/models.md` (SoT) |
-| Coder, Analyst, Reviewer, Operator | **flash 티어** | `references/schemas/models.md` (SoT) |
+| Agent Role | Model Tier | Where to Check the Actual ID |
+|------------|------------|------------------------------|
+| Orchestrator, Architect | **pro tier** | `references/schemas/models.md` (SoT) |
+| Coder, Analyst, Reviewer, Operator | **flash tier** | `references/schemas/models.md` (SoT) |
 
-> **중요:** 모델 ID를 코드에 직접 하드코딩하지 말 것. 항상 `_workspace/_schemas/models.md`를 `read_file`로 확인 후 사용. Gemini 모델 ID는 주기적으로 변경되며 잘못된 ID는 런타임 에러 발생.
-> **이유:** 워커는 범위 좁고 반복 호출 많음. Flash = Pro 대비 속도·비용 우위. 오케스트레이터·Architect만 Pro.
-
----
-
-## 데이터 브로커링 (Data Brokering) 프로토콜
-
-메인 에이전트는 서브에이전트 간의 **발견 사항(Discoveries)**을 실시간으로 중개한다.
-
-1. **실시간 기록:** 메인 에이전트가 중간 결과를 읽을 때마다 `_workspace/findings.md`에 핵심 통찰을 요약 기록한다.
-2. **컨텍스트 주입:** 다음 서브에이전트를 호출할 때, "현재까지의 핵심 발견 사항: [findings.md 내용]"을 프롬프트에 주입한다.
-3. **상태 동기화:** 모든 에이전트가 호출될 때마다 `_workspace/tasks.md`를 읽어 전체 맥락을 이해하도록 지시한다.
-4. **충돌 중개:** 에이전트 간 산출물이 상충하면 `_workspace/findings.md`의 [데이터 충돌] 섹션에 명시 → 중재 전문가(보통 Reviewer)에게 판정 요청.
-
-## 서브에이전트 상호작용 스타일 (Interaction Styles)
-
-오케스트레이터는 구조적 패턴 외에도, 에이전트와 대화하는 **스타일**을 선택하여 효율을 극대화할 수 있다.
-
-| 스타일                         | 호출 방식      | 특징                                                         | 적합한 경우                                             |
-| :----------------------------- | :------------- | :----------------------------------------------------------- | :------------------------------------------------------ |
-| **완전 위임 (Delegation)**     | `invoke_agent` | 작업의 시작부터 끝(파일 생성)까지 서브에이전트가 완결.       | 코딩, 리서치, 테스트 실행 등 독립적 실무.               |
-| **전문가 자문 (Consultative)** | `invoke_agent` | 산출물 대신 **"분석 의견"**이나 **"체크리스트"**만 반환받음. | 아키텍처 리뷰, 보안 점검, 구현 전략 수립.               |
-| **수동 개입 (Manual)**         | `@agent_name`  | 사용자가 터미널에서 직접 특정 에이전트를 소환.               | 하네스 실행 중 특정 단계만 수동으로 재검증하고 싶을 때. |
-
-### 스타일에 따른 고도화 팁
-
-- **자문 스타일 활용법:** 메인 에이전트가 직접 코드를 짜기 전, `@architect`를 소환해 "어떤 구조가 좋을지 의견만 달라"고 요청한다. 이후 메인은 그 의견을 `findings.md`에 적고 직접 코딩을 수행하면 컨텍스트 유실이 적다.
-- **수동 개입 유도:** 오케스트레이터가 에러를 해결하지 못할 경우, 사용자에게 "직접 `@agent-name`을 호출하여 상세 로그를 확인해 보시겠습니까?"라고 제안하도록 가이드한다.
-- **도구 격리의 힘:** 자문 스타일의 에이전트는 `write_file` 권한을 빼고 `read_file`만 주어, 실수로 코드를 건드리지 않고 오직 "지식"만 제공하도록 설계할 수 있다.
+> **Important:** Do not hardcode model IDs directly in code. Always confirm by reading `_workspace/_schemas/models.md` with `read_file` before using. Gemini model IDs change periodically, and incorrect IDs cause runtime errors.
+> **Reason:** Workers have a narrow scope and are called frequently. Flash has a speed and cost advantage over Pro. Only the orchestrator and Architect use Pro.
 
 ---
 
-## 에이전트 분리 기준
+## Data Brokering Protocol
 
-단일 에이전트로 합칠지, 별도 에이전트로 분리할지를 판단하는 4가지 기준.
+The main agent brokers **discoveries** between subagents in real time.
 
-| 기준         | 분리                                             | 통합                       |
-| ------------ | ------------------------------------------------ | -------------------------- |
-| **전문성**   | 영역(도메인·언어·스택)이 다르면 분리             | 영역이 겹치면 통합         |
-| **병렬성**   | 독립 실행 가능하면 분리(병렬 호출로 지연 단축)   | 순차 종속이면 통합 고려    |
-| **컨텍스트** | 컨텍스트 부담이 크면 분리(각자 작은 범위만 읽음) | 가볍고 빠르면 통합         |
-| **재사용성** | 다른 팀/시나리오에서도 쓰면 분리                 | 이 팀에서만 쓰면 통합 고려 |
+1. **Real-time recording:** Each time the main agent reads intermediate results, it summarizes key insights in `_workspace/findings.md`.
+2. **Context injection:** When invoking the next subagent, inject "Key findings so far: [contents of findings.md]" into the prompt.
+3. **State synchronization:** Instruct all agents to read `_workspace/tasks.md` on every invocation to understand the full context.
+4. **Conflict brokering:** If artifacts from agents conflict, note them explicitly in the [Data Conflicts] section of `_workspace/findings.md` → request adjudication from a mediator expert (typically the Reviewer).
 
-**Gemini CLI 추가 고려사항:** 분리할 때마다 메인 에이전트의 중개 부담이 늘어난다(각 에이전트 호출 전후로 `findings.md` 갱신 필요). 분리 이득이 중개 오버헤드를 상회하는지 점검할 것. 의심스러우면 처음엔 통합된 에이전트로 시작하고, 재사용 요구가 생길 때 분리한다.
+## Subagent Interaction Styles
+
+In addition to structural patterns, the orchestrator can choose the **style** of interaction with agents to maximize efficiency.
+
+| Style                            | Invocation Method  | Characteristics                                                              | Suitable When                                                          |
+| :------------------------------- | :----------------- | :--------------------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| **Full Delegation**              | `invoke_agent`     | The subagent completes the task end-to-end (including file creation).        | Independent hands-on work such as coding, research, test execution.    |
+| **Expert Consultation**          | `invoke_agent`     | Returns only **"analysis opinions"** or **"checklists"** instead of artifacts. | Architecture review, security checks, implementation strategy planning. |
+| **Manual Intervention**          | `@agent_name`      | The user directly summons a specific agent from the terminal.                | When you want to manually re-verify only a specific stage during harness execution. |
+
+### Advanced Tips by Style
+
+- **Using the consultative style:** Before the main agent writes code directly, summon `@architect` and ask it to "just give an opinion on which structure would be best." The main then records that opinion in `findings.md` and handles coding itself, minimizing context loss.
+- **Guiding manual intervention:** If the orchestrator cannot resolve an error, guide it to suggest to the user: "Would you like to call `@agent-name` directly to check detailed logs?"
+- **The power of tool isolation:** Consultative-style agents can be designed with `write_file` permission removed and only `read_file` granted, so they provide only "knowledge" without accidentally touching code.
 
 ---
 
-## 에이전트 정의 구조 (Gemini CLI 공식 포맷)
+## Agent Separation Criteria
 
-> **에이전트 파일 생성 시:** 인라인 예시가 아닌 **`_workspace/_schemas/agent-worker.template.md`** (워커) 또는 **`agent-orchestrator.template.md`** (오케스트레이터)를 `read_file`로 읽어 변수 치환 후 생성. 모델 ID는 반드시 **`_workspace/_schemas/models.md`** 확인 후 사용 — 임의 추측 금지.
+Four criteria for deciding whether to consolidate into a single agent or separate into distinct agents.
+
+| Criterion        | Separate                                                        | Consolidate                          |
+| ---------------- | --------------------------------------------------------------- | ------------------------------------ |
+| **Specialization** | Separate if domains (domain/language/stack) differ              | Consolidate if domains overlap       |
+| **Parallelism**  | Separate if independently executable (reduces delay via parallel invocation) | Consider consolidation if sequentially dependent |
+| **Context**      | Separate if context burden is large (each reads only a small scope) | Consolidate if lightweight and fast  |
+| **Reusability**  | Separate if used by other teams/scenarios                       | Consider consolidation if only used by this team |
+
+**Additional Gemini CLI considerations:** Each separation increases the main agent's brokering burden (requires updating `findings.md` before and after each agent invocation). Check whether the benefit of separation outweighs the brokering overhead. When in doubt, start with a consolidated agent and separate when a reuse need arises.
+
+---
+
+## Agent Definition Structure (Gemini CLI Official Format)
+
+> **When creating an agent file:** Do not use the inline example below — instead, read **`_workspace/_schemas/agent-worker.template.md`** (for workers) or **`agent-orchestrator.template.md`** (for orchestrators) with `read_file`, substitute variables, and create. Model IDs must be confirmed in **`_workspace/_schemas/models.md`** before use — no arbitrary guessing.
 
 ```markdown
 ---
 name: agent-name
-description: "1-2문장 역할 설명. 트리거 키워드 나열. 후속 작업(수정/보완/재실행) 지시도 이 에이전트를 사용하도록 명시."
+description: "1-2 sentence role description. List trigger keywords. Also specify that follow-up tasks (revision/supplementation/re-execution) should use this agent."
 kind: local
-model: "{models.md에서 확인한 역할 티어 ID}"  # ← 반드시 _workspace/_schemas/models.md 참조
+model: "{role tier ID confirmed from models.md}"  # ← must reference _workspace/_schemas/models.md
 tools:
   - ask_user
   - activate_skill
   - read_file
-  # … 역할별 최소 도구만 추가
+  # … add only the minimum tools for the role
 temperature: 0.3
 max_turns: 10
 ---
 
-# Agent Name — 역할 한줄 요약
+# Agent Name — One-line Role Summary
 
-당신은 [도메인]의 [역할] 전문가입니다.
+You are a [role] expert in [domain].
 
-## 핵심 역할
+## Core Role
 
-1. 역할1
-2. 역할2
+1. Role 1
+2. Role 2
 
-## 작업 원칙
+## Operating Principles
 
-- 원칙1
-- 원칙2
+- Principle 1
+- Principle 2
 
-## 입력/출력 프로토콜 (Data Broker 기반)
+## Input/Output Protocol (Data Broker-based)
 
-- **입력 브리핑:** 호출 시 프롬프트에 주입된 `findings.md` 요약과 `tasks.md`의 할당 task를 읽는다.
-- **산출물 경로:** `_workspace/{plan_name}/{step}/{agent}-result.md` (또는 오케스트레이터가 지정한 경로).
-- **형식:** [파일 포맷, 섹션 구조, 필수 필드]
-- **완료 신호:** 산출물 기록 후 프롬프트에서 지정한 "완료 키워드"를 출력한다.
+- **Input briefing:** Read the `findings.md` summary and assigned task from `tasks.md` injected into the prompt at invocation.
+- **Artifact path:** `_workspace/{plan_name}/{step}/{agent}-result.md` (or the path specified by the orchestrator).
+- **Format:** [File format, section structure, required fields]
+- **Completion signal:** After recording the artifact, output the "completion keyword" specified in the prompt.
 
-## 에러 핸들링
+## Error Handling
 
-- 필수 입력 누락 → `ask_user`로 보강 요청.
-- 데이터 충돌 발견 → `findings.md`의 [데이터 충돌]에 추가 후 진행 불가 표시.
-- 타임아웃/재시도 한계 도달 → 오케스트레이터에게 상세 로그와 함께 실패 보고.
+- Missing required input → request supplementation via `ask_user`.
+- Data conflict discovered → add to [Data Conflicts] in `findings.md` and indicate that progress cannot continue.
+- Timeout/retry limit reached → report failure to the orchestrator with detailed logs.
 
-## 다른 에이전트와의 관계
+## Relationships with Other Agents
 
-- 선행: [어느 에이전트의 산출물에 의존하는가]
-- 후행: [어느 에이전트가 이 산출물을 소비하는가]
-- 참고: 서브에이전트 간 직접 통신은 불가. 모든 협업은 `findings.md` 경유.
+- Upstream: [Which agent's artifacts does this depend on?]
+- Downstream: [Which agent consumes this artifact?]
+- Note: Direct communication between subagents is not possible. All collaboration goes through `findings.md`.
 ```
 
-> **주의:** Claude Code 에이전트 정의의 "팀 통신 프로토콜(SendMessage)" 섹션은 Gemini CLI에 없다. 대신 "입력/출력 프로토콜"에서 파일 경로·완료 신호·브리핑 방식을 명시하는 것이 같은 역할을 한다.
+> **Note:** The "Team Communication Protocol (SendMessage)" section of Claude Code agent definitions does not exist in Gemini CLI. Instead, specifying file paths, completion signals, and briefing methods in the "Input/Output Protocol" serves the same purpose.
 
 ---
 
-## 스킬 vs 에이전트 구분
+## Skill vs Agent Distinction
 
-| 구분          | 스킬 (Skill)                                                    | 에이전트 (Agent)                           |
-| ------------- | --------------------------------------------------------------- | ------------------------------------------ |
-| **정의**      | 절차적 지식 + 도구 번들                                         | 전문가 페르소나 + 행동 원칙                |
-| **위치**      | `.gemini/skills/{name}/SKILL.md`                                | `.gemini/agents/{name}.md`                 |
-| **트리거**    | 사용자 요청 키워드 매칭 또는 에이전트가 `activate_skill`로 호출 | 오케스트레이터가 `@{name}`으로 명시적 호출 |
-| **크기**      | 작은~큰 (워크플로우)                                            | 작은 (역할 정의)                           |
-| **용도**      | "**어떻게** 하는가"                                             | "**누가** 하는가"                          |
-| **상태 유지** | 상태 없음(매 호출 절차 재실행)                                  | 페르소나·원칙 고정, 세션 내 컨텍스트 유지  |
+| Aspect          | Skill                                                              | Agent                                          |
+| --------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
+| **Definition**  | Procedural knowledge + tool bundle                                 | Expert persona + behavioral principles         |
+| **Location**    | `.gemini/skills/{name}/SKILL.md`                                   | `.gemini/agents/{name}.md`                     |
+| **Trigger**     | User request keyword matching, or agent invokes via `activate_skill` | Orchestrator explicitly invokes via `@{name}` |
+| **Size**        | Small to large (workflow)                                          | Small (role definition)                        |
+| **Purpose**     | "**How** to do it"                                                 | "**Who** does it"                              |
+| **State**       | Stateless (procedure re-executed on each call)                     | Persona and principles fixed; context maintained within session |
 
-**요약:** 스킬은 에이전트가 작업을 수행할 때 참조하는 **절차적 가이드**이고, 에이전트는 스킬을 활용하는 **전문가 역할 정의**이다.
+**Summary:** A skill is a **procedural guide** that an agent references when performing a task, and an agent is a **specialist role definition** that utilizes skills.
 
 ---
 
-## 스킬 ↔ 에이전트 연결 방식
+## Skill ↔ Agent Connection Methods
 
-에이전트가 스킬을 활용하는 3가지 방식.
+Three ways for an agent to utilize a skill.
 
-| 방식                    | 구현                                                                                      | 적합한 경우                                               |
-| ----------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **activate_skill 호출** | 에이전트 프롬프트에 "해당 절차는 `activate_skill('{skill-name}')`을 호출해 실행하라" 명시 | 스킬이 독립 워크플로우이고 사용자가 직접 호출 가능한 경우 |
-| **프롬프트 내 인라인**  | 에이전트 정의 본문에 스킬 내용을 직접 포함                                                | 스킬이 짧고(50줄 이하) 이 에이전트 **전용**인 경우        |
-| **레퍼런스 로드**       | `read_file`로 `.gemini/skills/{skill}/references/*.md`를 필요 시 로드                     | 스킬 내용이 크고 **조건부로만** 필요한 경우               |
+| Method                   | Implementation                                                                                              | Suitable When                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **activate_skill call**  | Specify in the agent prompt: "For this procedure, invoke and execute `activate_skill('{skill-name}')`"      | The skill is an independent workflow and the user can call it directly |
+| **Inline in prompt**     | Directly include the skill content in the agent definition body                                             | The skill is short (50 lines or fewer) and **exclusive** to this agent |
+| **Reference load**       | Load `.gemini/skills/{skill}/references/*.md` with `read_file` as needed                                   | The skill content is large and only needed **conditionally**         |
 
-**권장:**
+**Recommendations:**
 
-- 재사용성이 높으면 → `activate_skill`
-- 전용이면 → 인라인
-- 대용량 + 조건부면 → `read_file` 레퍼런스 로드
+- High reusability → `activate_skill`
+- Exclusive → inline
+- Large + conditional → `read_file` reference load
 
-**원칙:** 모든 에이전트 정의는 `tools` 배열에 `activate_skill`을 포함한다. 스킬을 전혀 호출하지 않는 순수 페르소나형 에이전트는 원칙적으로 존재하지 않는다(행동 원칙·프로토콜·체크리스트는 거의 항상 스킬로 분리해야 재사용성·유지보수성이 높아지기 때문).
+**Principle:** All agent definitions include `activate_skill` in the `tools` array. A purely persona-based agent that never calls a skill does not exist in principle (because behavioral principles, protocols, and checklists should almost always be separated into skills to improve reusability and maintainability).

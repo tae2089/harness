@@ -1,238 +1,238 @@
-# QA 에이전트 설계 가이드
+# QA Agent Design Guide
 
-빌드 하네스에 QA 에이전트를 포함할 때 참고하는 가이드. 실제 프로젝트에서 발견된 버그 패턴과 근본 원인 분석을 바탕으로, QA가 놓치기 쉬운 결함을 체계적으로 잡는 검증 방법론을 제공한다. 본 가이드는 **Gemini CLI 오케스트레이션 환경**(서브에이전트 간 직접 통신 불가, 메인 에이전트가 Data Broker)을 전제로 작성되었다.
-
----
-
-## 목차
-
-1. QA 에이전트가 놓치는 결함의 패턴
-2. 통합 정합성 검증 (Integration Coherence Verification)
-3. QA 에이전트 설계 원칙 (오케스트레이션 모드)
-4. 검증 결과 보고 프로토콜 (JSON Protocol)
-5. 검증 체크리스트 템플릿
-6. QA 에이전트 정의 템플릿
-7. 부록: 실제 사례에서 배운 교훈
+A reference guide for including a QA agent in a build harness. Based on bug patterns and root cause analyses discovered in real projects, this guide provides a verification methodology for systematically catching defects that QA tends to miss. This guide assumes the **Gemini CLI orchestration environment** (no direct communication between sub-agents; the main agent acts as Data Broker).
 
 ---
 
-## 1. QA 에이전트가 놓치는 결함의 패턴
+## Table of Contents
 
-### 1-1. 경계면 불일치 (Boundary Mismatch)
+1. Patterns of defects that QA agents miss
+2. Integration Coherence Verification
+3. QA Agent Design Principles (Orchestration Mode)
+4. Verification Result Reporting Protocol (JSON Protocol)
+5. Verification Checklist Template
+6. QA Agent Definition Template
+7. Appendix: Lessons Learned from Real Cases
 
-가장 빈번한 결함. 두 컴포넌트가 각각 "올바르게" 구현되어 있지만, 연결 지점에서 계약이 어긋난다.
+---
 
-| 경계면 | 불일치 예시 | 놓치는 이유 |
+## 1. Patterns of defects that QA agents miss
+
+### 1-1. Boundary Mismatch
+
+The most frequent type of defect. Two components are each implemented "correctly," but the contract breaks at the connection point.
+
+| Boundary | Mismatch example | Why it is missed |
 |---|---|---|
-| API 응답 → 프론트 훅 | API가 `{ projects: [...] }` 반환, 훅이 `SlideProject[]` 기대 | 각각 개별 검증하면 정상, 교차 비교 안 함 |
-| API 응답 필드명 → 타입 정의 | API가 `thumbnailUrl`(camelCase), 타입이 `thumbnail_url`(snake_case) | TypeScript 제네릭 캐스팅으로 컴파일러가 놓침 |
-| 파일 경로 → 링크 href | 페이지가 `/dashboard/create`인데 링크가 `/create` | 파일 구조와 href를 교차 비교하지 않음 |
-| 상태 전이 맵 → 실제 status 업데이트 | 맵에 `generating_template → template_approved` 정의, 코드에 전환 누락 | 맵 존재만 확인하고 업데이트 코드를 추적하지 않음 |
-| API 엔드포인트 → 프론트 훅 | API 존재하지만 대응 훅 없음 (호출 안 됨) | API 목록과 훅 목록을 1:1 매핑하지 않음 |
-| 즉시 응답 → 비동기 결과 | API가 `{ status }` 즉시 반환, 프론트가 `data.failedIndices` 접근 | 동기/비동기 응답 구분 없이 타입만 확인 |
+| API response → frontend hook | API returns `{ projects: [...] }`, hook expects `SlideProject[]` | Passes individual validation; no cross-comparison performed |
+| API response field name → type definition | API uses `thumbnailUrl` (camelCase), type uses `thumbnail_url` (snake_case) | TypeScript generic casting causes the compiler to miss it |
+| File path → link href | Page is at `/dashboard/create` but link points to `/create` | File structure and href are not cross-compared |
+| State transition map → actual status update | Map defines `generating_template → template_approved`, transition missing in code | Only the map's existence is checked; update code is not traced |
+| API endpoint → frontend hook | API exists but no corresponding hook (never called) | API list and hook list are not mapped 1:1 |
+| Immediate response → async result | API immediately returns `{ status }`, frontend accesses `data.failedIndices` | Only the type is checked without distinguishing sync/async responses |
 
-### 1-2. 왜 정적 코드 리뷰로 못 잡나
+### 1-2. Why static code review cannot catch these
 
-- **TypeScript 제네릭의 한계:** `fetchJson<SlideProject[]>()` — 런타임 응답이 `{ projects: [...] }`여도 컴파일 통과.
-- **`npm run build` 통과 ≠ 정상 동작:** 타입 캐스팅, `any`, 제네릭이 있으면 빌드는 성공해도 런타임에 실패.
-- **존재 검증 vs 연결 검증의 차이:** "API가 있는가?"와 "API의 응답이 호출 측 기대와 일치하는가?"는 완전히 다른 검증.
-- **한쪽만 보는 코드 리뷰:** 리뷰어가 생산자나 소비자 중 한쪽만 읽으면 계약 불일치는 영원히 보이지 않는다.
-
----
-
-## 2. 통합 정합성 검증 (Integration Coherence Verification)
-
-QA 에이전트에 반드시 포함해야 하는 **교차 비교 검증** 영역.
-
-### 2-1. API 응답 ↔ 프론트 훅 타입 교차 검증
-
-**방법:** 각 API route의 `NextResponse.json()` 호출부와 대응 훅의 `fetchJson<T>` 타입 파라미터를 비교.
-
-```
-검증 단계:
-1. API route에서 NextResponse.json()에 전달하는 객체의 shape 추출
-2. 대응 훅에서 fetchJson<T>의 T 타입 확인
-3. shape과 T가 일치하는지 비교
-4. 래핑 여부 확인 (API가 { data: [...] } 반환 시 훅이 .data를 꺼내는지)
-```
-
-**특히 주의할 패턴:**
-- 페이지네이션 API `{ items: [], total, page }` vs 프론트가 배열 기대
-- snake_case DB 필드 → camelCase API 응답 → 프론트 타입 정의 간 불일치
-- 즉시 응답(202 Accepted) vs 최종 결과의 shape 차이
-
-### 2-2. 파일 경로 ↔ 링크/라우터 경로 매핑
-
-**방법:** `src/app/` 하위 page 파일의 URL 경로를 추출하고, 코드 내 모든 `href`, `router.push()`, `redirect()` 값과 대조.
-
-```
-검증 단계:
-1. src/app/ 하위 page.tsx 파일 경로에서 URL 패턴 추출
-   - (group) → URL에서 제거
-   - [param] → 동적 세그먼트
-2. 코드 내 모든 href=, router.push(, redirect( 값 수집
-3. 각 링크가 실제 존재하는 page 경로와 매칭되는지 확인
-4. route group 내부 페이지의 URL 접두사 주의 (예: dashboard/ 하위)
-```
-
-### 2-3. 상태 전이 완전성 추적
-
-**방법:** 코드에서 모든 `status:` 업데이트를 추출하여 상태 전이 맵과 대조.
-
-```
-검증 단계:
-1. 상태 전이 맵(STATE_TRANSITIONS)에서 허용된 전이 목록 추출
-2. 모든 API route에서 .update({ status: "..." }) 패턴 검색
-3. 각 전이가 맵에 정의되어 있는지 확인
-4. 맵에 정의된 전이 중 코드에서 실행되지 않는 것 식별 (죽은 전이)
-5. 중간 상태(예: generating_template)에서 최종 상태(template_approved)로의 전환 누락 여부 확인
-```
-
-### 2-4. API 엔드포인트 ↔ 프론트 훅 1:1 매핑
-
-**방법:** 모든 API route와 프론트 훅을 나열해 짝이 맞는지 확인.
-
-```
-검증 단계:
-1. src/app/api/ 하위 route.ts에서 HTTP 메서드별 엔드포인트 목록 추출
-2. src/hooks/ 하위 use*.ts에서 fetch 호출 URL 목록 추출
-3. API 엔드포인트 중 훅에서 호출하지 않는 것 식별 → "사용 안 됨" 플래그
-4. "사용 안 됨"이 의도적인지(관리 API 등) 아닌지(호출 누락) 판단
-```
+- **Limits of TypeScript generics:** `fetchJson<SlideProject[]>()` — compiles even if the runtime response is `{ projects: [...] }`.
+- **`npm run build` passing ≠ correct behavior:** If type casting, `any`, or generics are present, the build succeeds but fails at runtime.
+- **Existence verification vs. connection verification:** "Does the API exist?" and "Does the API response match the caller's expectation?" are completely different checks.
+- **One-sided code review:** If a reviewer reads only the producer or only the consumer, a contract mismatch will never be visible.
 
 ---
 
-## 3. QA 에이전트 설계 원칙 (오케스트레이션 모드)
+## 2. Integration Coherence Verification
 
-Gemini CLI 환경에서는 서브에이전트 간 직접 통신이 불가능하므로, 오케스트레이터(메인 에이전트)가 조율을 담당한다.
+The **cross-comparison verification** areas that must be included in every QA agent.
 
-### 3-1. "양쪽을 동시에 제공하라" 원칙
+### 2-1. API Response ↔ Frontend Hook Type Cross-Verification
 
-QA 에이전트가 경계면 버그를 잡으려면, 메인 에이전트가 호출 시 **양쪽의 컨텍스트를 모두 제공**해야 한다.
+**Method:** Compare the object shape passed to `NextResponse.json()` in each API route with the type parameter `T` in `fetchJson<T>` of the corresponding hook.
 
-- **방법:** `read_file`로 API route와 프론트 훅을 모두 읽어 QA 에이전트 프롬프트에 경로를 명시한다.
-- **에이전트 지침:** "반드시 지정된 두 파일을 열어 교차 비교하라"를 시스템 프롬프트에 명시.
+```
+Verification steps:
+1. Extract the shape of the object passed to NextResponse.json() in the API route
+2. Check the T type in fetchJson<T> in the corresponding hook
+3. Compare whether the shape and T match
+4. Check wrapping: if the API returns { data: [...] }, verify the hook unwraps via .data
+```
 
-### 3-2. 조회 전용이 아닌 실행 권한까지 허용하라
+**Patterns to watch especially:**
+- Pagination API `{ items: [], total, page }` vs. frontend expecting an array
+- Mismatches between snake_case DB fields → camelCase API responses → frontend type definitions
+- Shape differences between an immediate response (202 Accepted) and the final result
 
-효과적인 QA는 단순히 파일을 읽는 것을 넘어, `grep_search`로 패턴을 검색하고 `run_shell_command`로 테스트·린트·타입 체크 스크립트를 실제로 실행해야 한다. 따라서 QA 에이전트의 `tools`에는 `read_file`, `grep_search`, `glob`에 더해 **실행 계열 도구(`run_shell_command`)까지 포함**시킨다.
+### 2-2. File Path ↔ Link/Router Path Mapping
 
-**장기 실행 프로세스는 백그라운드로 띄워라.** Gemini CLI의 `run_shell_command`는 백그라운드 실행을 지원한다(예: `npm run dev &`, `is_background: true`). dev server·빌드 워처·테스트 데몬처럼 종료되지 않는 프로세스는 백그라운드로 띄워두고, 동일 턴 내에서 `curl`·Playwright·API 테스트 같은 후속 검증을 수행한다. 이렇게 하면 포그라운드 블로킹을 피하면서 E2E/통합 QA 흐름이 끊기지 않는다.
+**Method:** Extract URL paths from page files under `src/app/`, then compare against all `href`, `router.push()`, and `redirect()` values in the code.
 
-| 용도 | 실행 방식 | 예시 |
+```
+Verification steps:
+1. Extract URL patterns from page.tsx file paths under src/app/
+   - (group) → removed from URL
+   - [param] → dynamic segment
+2. Collect all href=, router.push(, redirect( values in the code
+3. Verify that each link matches an actually existing page path
+4. Watch for URL prefix of pages inside route groups (e.g., under dashboard/)
+```
+
+### 2-3. State Transition Completeness Tracking
+
+**Method:** Extract all `status:` updates from the code and compare against the state transition map.
+
+```
+Verification steps:
+1. Extract the list of allowed transitions from the state transition map (STATE_TRANSITIONS)
+2. Search all API routes for the .update({ status: "..." }) pattern
+3. Verify that each transition is defined in the map
+4. Identify transitions defined in the map but never executed in code (dead transitions)
+5. Check for missing transitions from intermediate states (e.g., generating_template) to final states (template_approved)
+```
+
+### 2-4. API Endpoint ↔ Frontend Hook 1:1 Mapping
+
+**Method:** List all API routes and frontend hooks to verify that every endpoint has a matching hook.
+
+```
+Verification steps:
+1. Extract HTTP-method-level endpoint list from route.ts files under src/app/api/
+2. Extract fetch call URL list from use*.ts files under src/hooks/
+3. Identify API endpoints not called by any hook → flag as "unused"
+4. Determine whether "unused" is intentional (e.g., admin API) or accidental (missing hook call)
+```
+
+---
+
+## 3. QA Agent Design Principles (Orchestration Mode)
+
+In the Gemini CLI environment, sub-agents cannot communicate directly, so the orchestrator (main agent) is responsible for coordination.
+
+### 3-1. "Provide both sides simultaneously" principle
+
+For a QA agent to catch boundary bugs, the main agent must provide **context from both sides** when invoking it.
+
+- **Method:** Use `read_file` to read both the API route and the frontend hook, and specify both paths explicitly in the QA agent prompt.
+- **Agent instruction:** State "You must open both specified files and cross-compare them" in the system prompt.
+
+### 3-2. Grant execution permissions, not just read access
+
+Effective QA goes beyond simply reading files — it must use `grep_search` to search for patterns and `run_shell_command` to actually run test, lint, and type-check scripts. Therefore, the QA agent's `tools` must include not only `read_file`, `grep_search`, and `glob` but also **execution tools (`run_shell_command`)**.
+
+**Run long-running processes in the background.** Gemini CLI's `run_shell_command` supports background execution (e.g., `npm run dev &`, `is_background: true`). Non-terminating processes such as dev servers, build watchers, and test daemons should be run in the background, while follow-up verification such as `curl`, Playwright, and API tests are performed within the same turn. This avoids foreground blocking while keeping the E2E/integration QA flow uninterrupted.
+
+| Purpose | Execution mode | Example |
 |---|---|---|
-| 린트·타입 체크·단위 테스트 | **포그라운드** (결과를 즉시 받아야 함) | `npm run lint`, `tsc --noEmit`, `pytest` |
-| dev server·API 서버 | **백그라운드** | `npm run dev &`, `python -m uvicorn app:app &` |
-| 빌드 워처·파일 감시 | **백그라운드** | `vite build --watch &`, `jest --watch &` |
-| 위 서버 띄운 후 E2E 검증 | 백그라운드 + 포그라운드 조합 | 백그라운드로 dev server, 포그라운드로 `curl`·Playwright |
+| Lint, type check, unit tests | **Foreground** (result needed immediately) | `npm run lint`, `tsc --noEmit`, `pytest` |
+| Dev server, API server | **Background** | `npm run dev &`, `python -m uvicorn app:app &` |
+| Build watcher, file watcher | **Background** | `vite build --watch &`, `jest --watch &` |
+| E2E verification after starting the server | Background + Foreground combination | Background dev server, foreground `curl`/Playwright |
 
-주의: QA 에이전트가 백그라운드 프로세스를 띄웠다면, 완료 시 반드시 종료(`kill $PID` 또는 `pkill`)하여 다음 QA 호출에 영향을 주지 않도록 `qa_report.md`의 "Cleanup" 섹션에 기록한다.
+Note: If the QA agent starts a background process, it must be terminated upon completion (`kill $PID` or `pkill`) and recorded in the "Cleanup" section of `qa_report.md` to avoid affecting subsequent QA calls.
 
-### 3-3. 체크리스트는 "존재 확인"보다 "교차 비교"를 우선하라
+### 3-3. Prioritize "cross-comparison" over "existence checks" in checklists
 
-| 약한 체크리스트 | 강한 체크리스트 |
+| Weak checklist | Strong checklist |
 |---|---|
-| API 엔드포인트가 존재하는가? | API 엔드포인트의 응답 shape과 대응 훅의 타입이 일치하는가? |
-| 상태 전이 맵이 정의되어 있는가? | 모든 status 업데이트 코드가 맵의 전이와 일치하는가? |
-| 페이지 파일이 존재하는가? | 코드 내 모든 링크가 실제 존재하는 페이지를 가리키는가? |
-| TypeScript strict mode인가? | 제네릭 캐스팅으로 우회된 타입 안전성이 없는가? |
+| Does the API endpoint exist? | Does the API endpoint's response shape match the corresponding hook's type? |
+| Is the state transition map defined? | Do all status update code entries match the transitions in the map? |
+| Does the page file exist? | Do all links in the code point to actually existing pages? |
+| Is TypeScript strict mode enabled? | Is there no type safety bypassed via generic casting? |
 
-### 3-4. 증분 QA (Incremental QA)
+### 3-4. Incremental QA
 
-전체 완성 후 한 번에 검증하지 않는다. 각 모듈(생산자+소비자) 완성 직후 즉시 QA 에이전트를 호출하여 피드백 루프를 짧게 유지한다.
+Do not validate everything at once after full completion. Invoke the QA agent immediately after each module (producer + consumer) is completed to keep the feedback loop short.
 
-- 오케스트레이터가 Step 4(전체 완성 후)에만 QA를 배치하면 버그가 누적되고, 초기 경계면 불일치가 후속 모듈로 전파된다.
-- **권장 패턴:** 각 백엔드 API 완성 시 즉시 해당 API + 대응 훅의 교차 검증 수행.
+- If the orchestrator places QA only at Step 4 (after full completion), bugs accumulate and early boundary mismatches propagate to subsequent modules.
+- **Recommended pattern:** Run cross-verification of each backend API and its corresponding hook immediately after completion.
 
-### 3-5. 리포트 우선, 수정은 오케스트레이터 재호출로
+### 3-5. Report first; fixes are handled by re-invoking the orchestrator
 
-Gemini CLI에서 QA 에이전트는 타 에이전트에게 직접 지시를 보낼 수 없다. 발견한 버그는 `_workspace/qa_report.md`에 기록하고, **검증 결과(PASS/FAIL)는 오케스트레이터와의 정합성을 위해 분할 작업 파일(`_workspace/tasks/task_{agent}_{id}.json`)에 기록**한다. 메인 에이전트는 이 리포트와 분할 파일을 읽어 `findings.md`에 요약 반영 후, 필요 시 구현 에이전트를 재호출하는 구조로 협업한다.
+In Gemini CLI, the QA agent cannot send instructions directly to other agents. Discovered bugs should be recorded in `_workspace/qa_report.md`, and **verification results (PASS/FAIL) should be recorded in the split task file (`_workspace/tasks/task_{agent}_{id}.json`) for coherence with the orchestrator**. The main agent reads this report and the split files, summarizes the findings in `findings.md`, and re-invokes implementation agents as needed.
 
 ---
 
-## 4. 검증 결과 보고 프로토콜 (JSON Protocol)
+## 4. Verification Result Reporting Protocol (JSON Protocol)
 
-QA 에이전트는 병렬 실행 환경에서의 데이터 정합성을 위해 다음 형식의 분할 작업 파일을 생성해야 한다.
+The QA agent must create a split task file in the following format to ensure data coherence in a parallel execution environment.
 
-- **파일 경로:** `_workspace/tasks/task_{agent_name}_{task_id}.json`
-- **보고 스키마:**
+- **File path:** `_workspace/tasks/task_{agent_name}_{task_id}.json`
+- **Reporting schema:**
     ```json
     {
       "agent": "@qa-inspector",
       "task_id": "T101",
-      "status": "done",        // "done" | "blocked" — 기본 스키마 필드
-      "retries": 0,            // 재시도 누적 횟수. retries ≥ 2 시 blocked 전환 (0·1 허용 = 총 3회)
+      "status": "done",        // "done" | "blocked" — base schema field
+      "retries": 0,            // cumulative retry count. blocked when retries ≥ 2 (0·1 allowed = 3 total)
       "evidence": "E2E test passed. Logs saved at _workspace/qa/log.txt",
-      "artifact_path": "_workspace/qa_report.md",  // 기본 스키마 필드명 준수
-      "result": "PASS"         // QA 전용 확장 필드. "PASS" | "FAIL" | null (Blocked 시)
+      "artifact_path": "_workspace/qa_report.md",  // base schema field name must be followed
+      "result": "PASS"         // QA-specific extension field. "PASS" | "FAIL" | null (when Blocked)
     }
     ```
 
-> **스키마 정본:** `agent·task_id·status·retries·evidence·artifact_path` 필드의 규범적 정의는 `references/orchestrator-template.md` § "분할 작업 파일 프로토콜"을 참조. 위 스키마는 QA 에이전트 관점의 적용 예시이며 `result`만 QA 전용 확장 필드다.
+> **Schema reference:** For the normative definitions of `agent`, `task_id`, `status`, `retries`, `evidence`, and `artifact_path` fields, see `references/orchestrator-template.md` § "Split Task File Protocol". The schema above is an application example from the QA agent's perspective; `result` is the only QA-specific extension field.
 
-### Zero-Tolerance 재시도 프로토콜
+### Zero-Tolerance Retry Protocol
 
-> **정본은 `references/orchestrator-procedures.md` — "에러 대응 결정 트리".** 아래는 QA 에이전트 관점의 적용 요약이다.
+> **The authoritative source is `references/orchestrator-procedures.md` — "Error Response Decision Tree".** The following is a summary of its application from the QA agent's perspective.
 
-QA 에이전트는 검증 실패 시 임의로 스킵하거나 결과를 무시하지 않는다. 다음 절차를 엄수한다:
+The QA agent must not skip or ignore verification failures arbitrarily. The following procedure must be strictly followed:
 
-1. **최대 2회 재시도(총 3회):** 실패 원인 파악 후 접근법 변경해 재시도. 매 재시도마다 `retries` 값 증가.
-2. **3회 후에도 실패 → `blocked`:** `status: "blocked"`, `result: null` 기록. `qa_report.md` "차단 항목" 섹션에 실패 원인·시도 이력·필요 정보 상세 기록.
-3. **오케스트레이터 에스컬레이션:** 메인이 `Blocked` 감지 → `checkpoint.json`에 `status: "blocked"` 기록 후 `ask_user` 호출. **임의 Skip 절대 금지.** 재시작 시 Step 0이 blocked 상태 감지 → 사유 표시 후 지시 대기.
+1. **Up to 2 retries (3 attempts total):** Identify the cause of failure, change the approach, and retry. Increment the `retries` value on each retry.
+2. **Still failing after 3 attempts → `blocked`:** Record `status: "blocked"`, `result: null`. Record the failure cause, attempt history, and required information in detail in the "Blocked Items" section of `qa_report.md`.
+3. **Orchestrator escalation:** When the main agent detects `Blocked` → record `status: "blocked"` in `checkpoint.json`, then call `ask_user`. **Arbitrary skip is strictly prohibited.** On restart, Step 0 detects the blocked status → displays the reason and waits for instructions.
 
 ---
 
-## 5. 검증 체크리스트 템플릿
+## 5. Verification Checklist Template
 
-QA 에이전트 정의에 포함할 범용 통합 정합성 체크리스트. **경계면을 공유하는 두 컴포넌트를 양쪽 동시에 읽고** 계약 일치 여부를 교차 비교하는 것이 핵심이다. 도메인에 따라 해당 섹션만 선택해 사용한다.
+A general-purpose integration coherence checklist to be included in QA agent definitions. The core principle is to **read both components that share a boundary simultaneously** and cross-compare for contract conformance. Select only the relevant sections based on the domain.
 
 ```markdown
-### 통합 정합성 검증
+### Integration Coherence Verification
 
-#### 경계면 계약 (모든 도메인 공통)
-- [ ] 생산자(Producer) 출력 타입·형식이 소비자(Consumer) 입력 기대와 일치
-- [ ] 공유 상수·열거형(enum) 값이 양쪽에서 동일하게 정의됨
-- [ ] 옵셔널 필드의 null/undefined 처리가 양쪽에서 일관됨
-- [ ] 비동기·즉시 응답의 형식이 소비자에서 명확히 구분됨
+#### Boundary Contracts (common to all domains)
+- [ ] Producer output types/formats match Consumer input expectations
+- [ ] Shared constants and enum values are defined identically on both sides
+- [ ] null/undefined handling for optional fields is consistent on both sides
+- [ ] Async and immediate response formats are clearly distinguished on the consumer side
 
-#### 참조 무결성 (모든 도메인 공통)
-- [ ] 코드 내 모든 경로·식별자·링크가 실제 존재하는 대상을 가리킴
-- [ ] 동적 파라미터·슬롯이 올바른 값으로 채워짐
+#### Referential Integrity (common to all domains)
+- [ ] All paths, identifiers, and links in the code point to actually existing targets
+- [ ] Dynamic parameters and slots are filled with correct values
 
-#### 상태 전이 완전성 (상태 머신이 있는 경우)
-- [ ] 정의된 모든 상태 전이가 코드에서 실행됨 (죽은 전이 없음)
-- [ ] 모든 상태 변경 코드가 전이 정의와 일치 (무단 전이 없음)
-- [ ] 중간 상태에서 최종 상태로의 전환이 누락되지 않음
+#### State Transition Completeness (when a state machine is present)
+- [ ] All defined state transitions are executed in code (no dead transitions)
+- [ ] All state-change code entries match the transition definitions (no unauthorized transitions)
+- [ ] No missing transitions from intermediate states to final states
 
-#### 데이터 흐름 정합성 (모든 도메인 공통)
-- [ ] 소스(DB·파일·API)의 필드명·타입이 파이프라인 전 구간에서 일관됨
-- [ ] 데이터 변환(타입·케이스·단위)이 명시적으로 처리됨
+#### Data Flow Coherence (common to all domains)
+- [ ] Field names and types from the source (DB, file, API) are consistent throughout the entire pipeline
+- [ ] Data transformations (type, case, unit) are handled explicitly
 
 ---
 
-#### [웹 앱] API ↔ 프론트엔드 연결
-- [ ] 모든 API route의 응답 shape과 대응 훅의 제네릭 타입이 일치
-- [ ] 래핑된 응답({ items: [...] })은 훅에서 unwrap하는지 확인
-- [ ] snake_case ↔ camelCase 변환이 일관되게 적용
-- [ ] 즉시 응답(202)과 최종 결과의 shape이 프론트에서 구분되는지 확인
-- [ ] 모든 API 엔드포인트에 대응하는 프론트 훅이 존재하고 실제로 호출됨
+#### [Web App] API ↔ Frontend Connection
+- [ ] All API route response shapes match the generic types of the corresponding hooks
+- [ ] Wrapped responses ({ items: [...] }) are unwrapped in the hook
+- [ ] snake_case ↔ camelCase conversion is applied consistently
+- [ ] Immediate responses (202) and final result shapes are distinguished on the frontend
+- [ ] A corresponding frontend hook exists for every API endpoint and is actually called
 
-#### [웹 앱] 라우팅 정합성
-- [ ] 코드 내 모든 href/router.push 값이 실제 page 파일 경로와 매칭
-- [ ] route group ((group))이 URL에서 제거되는 것을 고려한 경로 검증
-- [ ] 동적 세그먼트([id])가 올바른 파라미터로 채워지는지 확인
+#### [Web App] Routing Coherence
+- [ ] All href/router.push values in the code match actual page file paths
+- [ ] Route groups ((group)) are accounted for (they are removed from the URL) in path validation
+- [ ] Dynamic segments ([id]) are filled with the correct parameters
 ```
 
 ---
 
-## 6. QA 에이전트 정의 템플릿
+## 6. QA Agent Definition Template
 
-Gemini CLI 공식 서브에이전트 포맷을 준수한다.
+Conforms to the official Gemini CLI sub-agent format.
 
 ```markdown
 ---
 name: qa-inspector
-description: "QA 검증 전문가. 스펙 준수, 경계면 통합 정합성, 산출물 품질을 검증. 품질 검수·버그 검수·정합성 검증 요청 시 반드시 이 에이전트를 선택하라."
+description: "QA verification specialist. Validates spec compliance, boundary integration coherence, and artifact quality. Always select this agent for quality inspection, bug review, and coherence verification requests."
 kind: local
 model: "gemini-3-flash-preview"
 temperature: 0.2
@@ -249,52 +249,52 @@ tools:
 
 # QA Inspector
 
-## 핵심 역할
-스펙 대비 산출물 품질과 **모듈 간 통합 정합성(Coherence)**을 검증한다. 도메인에 무관하게 경계면을 공유하는 두 컴포넌트를 양쪽 동시에 읽고 계약 일치 여부를 교차 비교하는 것이 핵심이다.
+## Core Role
+Verify artifact quality against the spec and **inter-module integration coherence**. Regardless of domain, the core principle is to read both components that share a boundary simultaneously and cross-compare for contract conformance.
 
-## 검증 우선순위
+## Verification Priorities
 
-1. **통합 정합성** (가장 높음) — 경계면 불일치가 런타임 오류의 주요 원인
-2. **기능 스펙 준수** — 계약·상태 머신·데이터 모델
-3. **산출물 품질** — 형식, 완성도, 가독성 (도메인별 기준 적용)
-4. **내부 일관성** — 미사용 참조, 명명 규칙, 중복
+1. **Integration coherence** (highest) — boundary mismatches are the leading cause of runtime errors
+2. **Functional spec compliance** — contracts, state machines, data models
+3. **Artifact quality** — format, completeness, readability (domain-specific criteria apply)
+4. **Internal consistency** — unused references, naming conventions, duplication
 
-## 검증 방법: "양쪽 동시 읽기"
+## Verification Method: "Read Both Sides Simultaneously"
 
-경계면 검증은 반드시 **생산자와 소비자를 동시에 열어** 비교한다.
+Boundary verification must always be done by **opening both the producer and the consumer** and comparing them.
 
-| 검증 대상 | 생산자 (왼쪽) | 소비자 (오른쪽) |
+| Verification target | Producer (left) | Consumer (right) |
 |---|---|---|
-| 데이터 계약 | 출력 형식·타입 정의 | 입력 기대·파싱 로직 |
-| 경로·참조 | 정의된 경로·식별자·링크 | 호출 측이 사용하는 경로·식별자 |
-| 상태 전이 | 전이 맵·정의 | 실제 상태 변경 코드 |
-| 데이터 흐름 | 소스(DB·파일·API)의 필드명·타입 | 하류 소비자의 필드명·타입 |
+| Data contract | Output format/type definitions | Input expectations/parsing logic |
+| Paths/references | Defined paths, identifiers, links | Paths and identifiers used by the caller |
+| State transitions | Transition map/definitions | Actual state-change code |
+| Data flow | Field names/types from source (DB, file, API) | Field names/types in downstream consumers |
 
-> **웹 앱 예시:** `route.ts` NextResponse → `fetchJson<T>` 훅 / `src/app/` page 경로 → `href` 값 / `STATE_TRANSITIONS` 맵 → `.update({ status })` 코드
+> **Web App example:** `route.ts` NextResponse → `fetchJson<T>` hook / `src/app/` page path → `href` value / `STATE_TRANSITIONS` map → `.update({ status })` code
 
-## 협업 프로토콜 (Orchestration)
+## Collaboration Protocol (Orchestration)
 
-1. 검증 결과물은 `_workspace/qa_report.md`에 기록한다.
-2. 발견된 버그는 **"수정 지시서"** 섹션에 `파일:라인 + 수정 방법`을 구체적으로 명시한다.
-3. 경계면 이슈는 양쪽 에이전트가 모두 재작업할 수 있도록 생산자·소비자 경로를 리포트에 병기한다.
-4. 메인 에이전트(오케스트레이터)는 이 리포트를 읽고 `findings.md`에 요약 반영 후, 필요 시 구현 에이전트를 재호출한다.
-5. 모호한 계약(예: "이 필드가 옵셔널인가?")은 추측하지 않고 `ask_user`로 확인한다.
+1. Verification results are recorded in `_workspace/qa_report.md`.
+2. Discovered bugs are detailed in the **"Fix Instructions"** section with `file:line + fix method`.
+3. For boundary issues, both producer and consumer paths are listed in the report so both agents can rework as needed.
+4. The main agent (orchestrator) reads this report, summarizes it in `findings.md`, and re-invokes implementation agents as needed.
+5. Ambiguous contracts (e.g., "is this field optional?") are not guessed — confirm with `ask_user`.
 ```
 
 ---
 
-## 7. 부록: 실제 사례에서 배운 교훈
+## 7. Appendix: Lessons Learned from Real Cases
 
-이 가이드의 모든 내용은 아래 실제 버그에서 추출한 교훈이다.
+All content in this guide is derived from the lessons learned from the actual bugs below.
 
-| 버그 | 경계면 | 원인 |
+| Bug | Boundary | Cause |
 |---|---|---|
-| `projects?.filter is not a function` | API → 훅 | API가 `{ projects: [] }` 반환, 훅이 배열 기대 |
-| 대시보드 모든 링크 404 | 파일경로 → href | `/dashboard/` 접두사 누락 |
-| 테마 이미지 안 보임 | API → 컴포넌트 | `thumbnailUrl` vs `thumbnail_url` |
-| 테마 선택 저장 안 됨 | API → 훅 | select-theme API 존재, 대응 훅 없음 |
-| 생성 페이지 영원히 대기 | 상태전이 → 코드 | `template_approved` 전이 코드 누락 |
-| `data.failedIndices` 크래시 | 즉시응답 → 프론트 | 백그라운드 결과를 즉시 응답에서 접근 |
-| 완료 후 슬라이드 보기 404 | 파일경로 → href | `/projects/` → `/dashboard/projects/` |
+| `projects?.filter is not a function` | API → hook | API returns `{ projects: [] }`, hook expects an array |
+| All dashboard links 404 | File path → href | Missing `/dashboard/` prefix |
+| Theme image not displayed | API → component | `thumbnailUrl` vs `thumbnail_url` |
+| Theme selection not saved | API → hook | select-theme API exists, no corresponding hook |
+| Creation page stuck forever | State transition → code | Missing `template_approved` transition code |
+| `data.failedIndices` crash | Immediate response → frontend | Background result accessed from immediate response |
+| View slides after completion 404 | File path → href | `/projects/` → `/dashboard/projects/` |
 
-이 모든 버그의 공통점은 **한쪽만 보면 정상이고, 양쪽을 함께 봐야만 드러난다**는 점이다. 따라서 QA 에이전트 설계의 제1원칙은 "양쪽 동시 읽기"다.
+The common thread in all these bugs is that **each side looks correct on its own, and the problem only becomes visible when both sides are examined together**. Therefore, the first principle of QA agent design is "read both sides simultaneously."

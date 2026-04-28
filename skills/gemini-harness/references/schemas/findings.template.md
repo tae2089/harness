@@ -5,36 +5,36 @@ findings.md schema — Main agent sole writer. All workers read via prompt injec
 Init: include only sections required by the active patterns (see table below).
 Do NOT invent custom section names. Pattern → section mapping is fixed.
 
-| Pattern                  | Required sections (in addition to [공유 변수/경로])                       |
+| Pattern                  | Required sections (in addition to [Shared Variables/Paths])               |
 |--------------------------|---------------------------------------------------------------------------|
-| pipeline / hierarchical  | [다음 단계 지침]                                                          |
-| fan_out / fan_out_fan_in | [핵심 통찰], [핵심 키워드], [데이터 충돌]                                 |
-| producer_reviewer        | [변경 요청]                                                               |
-| supervisor / handoff     | [데이터 충돌]                                                             |
-| expert_pool              | [라우팅 근거]  (format: "- {agent}: {reason} (matching: {keyword})")     |
+| pipeline / hierarchical  | [Next Step Instructions]                                                  |
+| fan_out / fan_out_fan_in | [Key Insights], [Key Keywords], [Data Conflicts]                          |
+| producer_reviewer        | [Change Requests]                                                         |
+| supervisor / handoff     | [Data Conflicts]                                                          |
+| expert_pool              | [Routing Rationale]  (format: "- {agent}: {reason} (matching: {keyword})")|
 
-All patterns share: [공유 변수/경로].
+All patterns share: [Shared Variables/Paths].
 -->
 
-## [공유 변수/경로]
+## [Shared Variables/Paths]
 <!-- Required for all patterns. Workspace paths, API contracts, persistence resume points. -->
-- 작업 디렉터리:
-- 산출물 경로:
+- Working directory:
+- Output path:
 
-## [핵심 통찰]
+## [Key Insights]
 <!-- fan_out / fan_out_fan_in only. Worker outputs synthesized by main. -->
 
-## [핵심 키워드]
+## [Key Keywords]
 <!-- fan_out / fan_out_fan_in only. Common keywords injected into worker prompts. -->
 
-## [데이터 충돌]
+## [Data Conflicts]
 <!-- fan_out / supervisor / handoff. Conflicting outputs with sources cited. Never delete a side. -->
 
-## [변경 요청]
+## [Change Requests]
 <!-- producer_reviewer only. Reviewer's REJECT feedback for next producer iteration. -->
 
-## [다음 단계 지침]
+## [Next Step Instructions]
 <!-- pipeline / hierarchical only. Hand-off guidance to next agent. -->
 
-## [라우팅 근거]
+## [Routing Rationale]
 <!-- expert_pool only. Format: "- @agent-name: {reason} (matching: {keyword})" -->

@@ -1,94 +1,94 @@
-# 하네스 진화 프로토콜
+# Harness Evolution Protocol
 
-`SKILL.md` Step 7의 상세 워크플로우. 하네스는 한 번 만들고 끝나는 정적 산출물이 아니라 사용자 피드백에 따라 계속 진화하는 시스템이다. Step 0에서 "운영/유지보수" 분기로 진입하거나, 사용자가 "하네스 점검/감사/동기화/확장" 등을 요청하면 이 파일을 먼저 로드한다.
-
----
-
-## 목차
-
-1. [실행 후 피드백 수집](#1-실행-후-피드백-수집)
-2. [피드백 반영 경로](#2-피드백-반영-경로)
-3. [변경 이력 관리](#3-변경-이력-관리)
-4. [진화 트리거](#4-진화-트리거)
-5. [운영/유지보수 워크플로우](#5-운영유지보수-워크플로우)
+Detailed workflow for `SKILL.md` Step 7. A harness is not a static artifact built once and finished — it is a system that continuously evolves in response to user feedback. Load this file first when entering the "operations/maintenance" branch in Step 0, or when the user requests "harness inspection/audit/sync/extension".
 
 ---
 
-## 1. 실행 후 피드백 수집
+## Table of Contents
 
-매 하네스 실행 완료 후, 사용자에게 피드백을 요청한다.
-
-- "결과에서 개선할 부분이 있나요?"
-- "에이전트 구성이나 워크플로우에 바꾸고 싶은 점이 있나요?"
-
-피드백이 없으면 넘어간다. 강요하지 않되, 반드시 기회를 제공한다.
-
----
-
-## 2. 피드백 반영 경로
-
-피드백 유형에 따라 수정 대상이 다르다.
-
-| 피드백 유형     | 수정 대상                 | 예시                                             |
-| --------------- | ------------------------- | ------------------------------------------------ |
-| 결과물 품질     | 해당 에이전트의 스킬      | "분석이 너무 피상적" → 스킬에 깊이 기준 추가     |
-| 에이전트 역할   | 에이전트 정의 `.md`       | "보안 검토도 필요" → 새 에이전트 추가            |
-| 워크플로우 순서 | 오케스트레이터 스킬       | "검증을 먼저 해야" → Step 순서 변경             |
-| 팀 구성         | 오케스트레이터 + 에이전트 | "이 둘은 합쳐도 될 듯" → 에이전트 병합           |
-| 트리거 누락     | 스킬 description          | "이 표현으로 하면 작동 안 함" → description 확장 |
+1. [Post-execution Feedback Collection](#1-post-execution-feedback-collection)
+2. [Feedback Incorporation Paths](#2-feedback-incorporation-paths)
+3. [Change History Management](#3-change-history-management)
+4. [Evolution Triggers](#4-evolution-triggers)
+5. [Operations/Maintenance Workflow](#5-operationsmaintenance-workflow)
 
 ---
 
-## 3. 변경 이력 관리
+## 1. Post-execution Feedback Collection
 
-모든 변경은 GEMINI.md의 **변경 이력** 테이블에 기록한다(Step 5-4 GEMINI.md 템플릿의 이력 섹션과 동일).
+After each harness execution completes, request feedback from the user.
+
+- "Are there any parts of the results you'd like to improve?"
+- "Are there any changes you'd like to make to the agent configuration or workflow?"
+
+If there is no feedback, move on. Do not force it, but always provide the opportunity.
+
+---
+
+## 2. Feedback Incorporation Paths
+
+The target for modification differs depending on the type of feedback.
+
+| Feedback Type       | Modification Target              | Example                                                       |
+| ------------------- | -------------------------------- | ------------------------------------------------------------- |
+| Output quality      | Skill of the relevant agent      | "Analysis is too shallow" → add depth criteria to skill       |
+| Agent role          | Agent definition `.md`           | "Security review is also needed" → add new agent              |
+| Workflow order      | Orchestrator skill               | "Validation should come first" → change Step order            |
+| Team composition    | Orchestrator + agents            | "These two could be merged" → merge agents                    |
+| Missing trigger     | Skill description                | "Doesn't work with this phrasing" → expand description        |
+
+---
+
+## 3. Change History Management
+
+All changes are recorded in the **change history** table in GEMINI.md (same as the history section of the GEMINI.md template in Step 5-4).
 
 ```markdown
-**변경 이력:**
-| 날짜 | 변경 내용 | 대상 | 사유 |
+**Change History:**
+| Date | Change | Target | Reason |
 |---|---|---|---|
-| 2026-04-05 | 초기 구성 | 전체 | - |
-| 2026-04-07 | QA 에이전트 추가 | agents/qa-inspector.md | 산출물 품질 검증 부족 피드백 |
-| 2026-04-10 | 톤 가이드 추가 | skills/content-creator | "너무 딱딱하다" 피드백 |
+| 2026-04-05 | Initial setup | Entire harness | - |
+| 2026-04-07 | Added QA agent | agents/qa-inspector.md | Feedback on insufficient output quality validation |
+| 2026-04-10 | Added tone guide | skills/content-creator | Feedback: "too stiff" |
 ```
 
 ---
 
-## 4. 진화 트리거
+## 4. Evolution Triggers
 
-사용자가 명시적으로 "하네스 수정해줘"라고 할 때만이 아니라, 다음 상황에서도 진화를 제안한다.
+Evolution is proposed not only when the user explicitly says "modify the harness", but also in the following situations.
 
-- 같은 유형의 피드백이 2회 이상 반복될 때.
-- 에이전트가 반복적으로 실패하는 패턴이 발견될 때.
-- 사용자가 오케스트레이터를 우회하여 수동으로 작업하는 것이 관찰될 때.
+- When the same type of feedback repeats 2 or more times.
+- When a repeated failure pattern by an agent is discovered.
+- When the user is observed bypassing the orchestrator and working manually.
 
 ---
 
-## 5. 운영/유지보수 워크플로우
+## 5. Operations/Maintenance Workflow
 
-기존 하네스의 점검·수정·동기화를 체계적으로 수행한다. Step 0에서 "운영/유지보수" 분기로 진입했을 때 이 워크플로우를 따른다.
+Systematically perform inspection, modification, and synchronization of an existing harness. Follow this workflow when entering the "operations/maintenance" branch in Step 0.
 
-### Step 1: 현황 감사
+### Step 1: Status Audit
 
-- `.gemini/agents/` 파일 목록과 오케스트레이터 스킬의 에이전트 구성 비교 → 불일치 목록 생성.
-- `.gemini/skills/` 디렉토리 목록과 오케스트레이터 스킬의 스킬 구성 비교 → 불일치 목록 생성.
-- 감사 결과를 사용자에게 보고.
+- Compare the file list in `.gemini/agents/` against the agent configuration in the orchestrator skill → generate discrepancy list.
+- Compare the directory list in `.gemini/skills/` against the skill configuration in the orchestrator skill → generate discrepancy list.
+- Report audit results to the user.
 
-### Step 2: 점진적 추가/수정
+### Step 2: Incremental Addition/Modification
 
-- 사용자 요청에 따라 에이전트·스킬 추가/수정/삭제 수행.
-- 변경 유형 분류 후 실행할 Step 결정: `references/expansion-matrix.md` — `classify_change()` 참조.
-- 변경은 한 번에 하나씩, 각 변경 후 즉시 Step 3을 실행.
+- Perform agent/skill additions, modifications, and deletions per the user's request.
+- Classify the type of change and determine which Steps to execute: see `references/expansion-matrix.md` — `classify_change()`.
+- Make changes one at a time; immediately run Step 3 after each change.
 
-> **실행 중 진화 안전성:** 하네스가 현재 실행 중(`_workspace/checkpoint.json`의 `status: "in_progress"` 또는 `"partial"`)인 상태에서 스킬/에이전트 파일을 수정하면, 다음 사이클 재진입 시 오케스트레이터는 checkpoint.json에서 `current_stage`·`current_step`·`active_pattern`을 읽어 진행 위치를 복원한다. 따라서 **이미 완료된 Step는 재실행하지 않고** 다음 Step 진입 시 checkpoint.json의 `current_step` 복원 시점부터 진행된다. 수정된 에이전트·스킬 파일은 오케스트레이터가 다음에 `invoke_agent`로 해당 에이전트를 호출하는 시점부터 적용된다. 단, 수정이 현재 실행 중인 Step의 에이전트·종료 조건에 영향을 준다면, 해당 Step를 수동으로 재실행하거나(`checkpoint.json`의 `current_step` 롤백) 처음부터 재시작할 것을 사용자에게 제안한다.
+> **Runtime evolution safety:** If skill/agent files are modified while the harness is currently running (`status: "in_progress"` or `"partial"` in `_workspace/checkpoint.json`), the orchestrator will restore the execution position from `current_stage`·`current_step`·`active_pattern` in checkpoint.json on the next cycle re-entry. Therefore, **already-completed Steps are not re-run** — execution proceeds from the `current_step` restore point in checkpoint.json upon entering the next Step. Modified agent/skill files take effect from the point where the orchestrator next calls that agent via `invoke_agent`. However, if the modification affects the agent or exit condition of the currently running Step, suggest to the user to manually re-run that Step (rolling back `current_step` in `checkpoint.json`) or restart from the beginning.
 
-### Step 3: GEMINI.md 변경 이력 갱신
+### Step 3: Update GEMINI.md Change History
 
-- 변경 이력 테이블에 날짜, 변경 내용, 대상, 사유 기록.
+- Record date, change content, target, and reason in the change history table.
 
-### Step 4: 변경 검증
+### Step 4: Change Validation
 
-- 수정된 에이전트/스킬의 구조 검증 (Step 6-1 기준).
-- 수정 범위가 트리거에 영향을 주면 트리거 검증 (Step 6-4 기준).
-- 대규모 변경(아키텍처 변경, 에이전트 3개 이상 추가/삭제) 시 Step 6-3(실행 테스트), 6-5(드라이런)까지 수행.
-- GEMINI.md와 실제 파일의 일치 여부 최종 확인.
+- Validate the structure of modified agents/skills (per Step 6-1 criteria).
+- If the modification scope affects triggers, perform trigger validation (per Step 6-4 criteria).
+- For large-scale changes (architecture changes, 3+ agents added/removed), also perform Step 6-3 (execution test) and 6-5 (dry run).
+- Final confirmation that GEMINI.md matches the actual files.
