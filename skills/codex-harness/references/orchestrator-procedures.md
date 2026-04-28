@@ -117,7 +117,7 @@ If follow-up keywords are missing from `description`, the Codex CLI trigger rout
 5. **Ensure visibility:** All intermediate steps must be recorded to files via `findings.md` and `tasks.md`.
 6. **Declare Step dependencies:** Declare dependencies through the Step order and exit conditions in workflow.md. The structure of Step N complete → enter Step N+1 must be clearly expressed in workflow.md.
 7. **Realistic error assumptions:** Do not assume "everything succeeds." Include a rule that prohibits Stage advancement when a Step is Blocked.
-8. **Test scenarios required:** Include at least 1 normal + 1 error scenario in the skill body. Without them, Step 5 validation cannot pass.
+8. **Test scenarios required:** Include at least 1 normal + 1 resume + 1 error scenario in the skill body. Without all three, Step 5 validation cannot pass.
 
 ## Stage/Step Transition Protocol
 

@@ -69,3 +69,31 @@ Apply the standard Step 2 procedure from `references/orchestrator-template.md`. 
 ## Error Handling
 
 Zero-Tolerance: Agent failure → up to 2 retries (3 total) → if unresolved, set `task_*.json` status=blocked + `ask_user`. Arbitrary skipping is strictly prohibited.
+
+## Test Scenarios
+
+> Required: at least **1 normal flow + 1 resume flow + 1 error flow**. Step 5 validation cannot pass without all three. Full scenario spec: `references/skill-testing-guide.md` § Orchestrator Test Scenarios.
+
+### Normal Flow
+
+1. User provides `{input}`.
+2. Step 0: `_workspace/` absent → fresh run.
+3. Step 1: Create `workflow.md` · `findings.md` · `tasks.md` · `checkpoint.json`. Stage/Step names follow Jira kebab-case convention (no placeholders like `main`).
+4. Step 2: Invoke agents per workflow.md order (e.g., @{agent-1} → @{agent-2}).
+5. Step 3+: QA / integration / reporting per workflow.md.
+6. **Expected:** `_workspace/{{PLAN_NAME}}/final_{output}` exists, all `tasks.md` items `Done`.
+
+### Resume Flow
+
+1. @{agent-1} completes; session interrupted before @{agent-2} finishes.
+2. User re-invokes → Step 0 detects `checkpoint.json` (`status: in_progress`).
+3. Restore `current_stage` / `current_step` → skip completed work, resume from @{agent-2}.
+4. **Expected:** @{agent-1} output reused as-is; only @{agent-2} and later steps re-execute.
+
+### Error Flow
+
+1. Step 3: @{reviewer} rejects @{agent-2}'s output.
+2. Rejection reason recorded in `findings.md` [Change Requests].
+3. @{agent-2} re-invoked with reviewer report injected → produces corrected output.
+4. @{reviewer} re-validates → passes → proceed to next step.
+5. **Expected:** Final report explicitly notes "Error recovery: @{agent-2} revised after @{reviewer} rejection".

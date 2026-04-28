@@ -117,7 +117,7 @@ If follow-up keywords are missing from the `description`, the Gemini CLI trigger
 5. **Ensure visibility:** All intermediate processes must be recorded as files via `findings.md` and `tasks.md`.
 6. **Declare Step dependencies:** Declare dependencies through the Step order and exit conditions in workflow.md. The structure of Step N completion → Step N+1 entry must be clearly expressed in workflow.md.
 7. **Realistic error assumptions:** Do not assume "everything will succeed". Include the rule that Stage transitions are prohibited when a Step is Blocked.
-8. **Test scenarios required:** Include at least 1 normal + 1 error scenario in the skill body. Without them, Step 5 validation cannot be passed.
+8. **Test scenarios required:** Include at least 1 normal + 1 resume + 1 error scenario in the skill body. Without all three, Step 5 validation cannot be passed.
 
 ## Stage/Step Transition Protocol
 
