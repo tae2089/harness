@@ -7,6 +7,7 @@ Runtime schema definitions (single source of truth). At runtime, orchestrator St
 | File                             | Type                           | Purpose                                                          |
 | -------------------------------- | ------------------------------ | ---------------------------------------------------------------- |
 | `task.schema.json`               | JSON Schema (Draft 7)          | Worker report validation for `_workspace/tasks/task_{agent}_{id}.json` |
+| `checkpoint.schema.json`         | JSON Schema (Draft 7)          | Validation SoT for `_workspace/checkpoint.json` — parsed by `state.py` at runtime |
 | `findings.template.md`           | Markdown skeleton              | Data broker initialization for `_workspace/findings.md`         |
 | `tasks.template.md`              | Markdown table skeleton        | Task board initialization for `_workspace/tasks.md`             |
 | `workflow.template.md`           | Markdown block skeleton        | Stage-Step declaration reference for `_workspace/workflow.md`   |
@@ -16,7 +17,7 @@ Runtime schema definitions (single source of truth). At runtime, orchestrator St
 | `agent-state-manager.template.toml`  | State manager agent TOML template | Reference for generating State Manager `.codex/agents/state-manager.toml` (optional) |
 | `state.py`                           | Python state manager CLI          | Deployed to `_workspace/state.py` at init — targeted reads/writes to minimize token usage |
 
-> Only `README.md` is not copied to the workspace. 8 files go to `_workspace/_schemas/`. `state.py` is deployed separately to `_workspace/state.py` (callable as `python _workspace/state.py`).
+> Only `README.md` is not copied to the workspace. 9 files go to `_workspace/_schemas/`. `state.py` is deployed separately to `_workspace/state.py` (callable as `python _workspace/state.py`).
 
 ## Lifecycle
 

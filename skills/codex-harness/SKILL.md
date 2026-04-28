@@ -119,12 +119,12 @@ Required fields: `name`, `description`, `developer_instructions`, `model`, `sand
 
 Write `.agents/skills/{orchestrator-name}/SKILL.md`. Reference: `references/schemas/agent-orchestrator.template.md`.
 
-Bundle schema files: Copy all 9 items from `references/schemas/` → `.agents/skills/{name}/references/schemas/` (8 schemas + `state.py`).
+Bundle schema files: Copy all 10 items from `references/schemas/` → `.agents/skills/{name}/references/schemas/` (9 schemas + `state.py`).
 
 ### Phase 5: Integration and Orchestration
 
 1. Create `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
-2. Schema sync: Copy all 8 schemas from `references/schemas/` → `_workspace/_schemas/`. Also copy `references/schemas/state.py` → `_workspace/state.py` (separate destination — callable as `python _workspace/state.py`).
+2. Schema sync: Copy all 9 schemas from `references/schemas/` → `_workspace/_schemas/`. Also copy `references/schemas/state.py` → `_workspace/state.py` (separate destination — callable as `python _workspace/state.py`).
 3. Write `workflow.md` — Stage-Step structure, 6 required fields, verifiable exit conditions.
 4. Initialize `findings.md` (sections by pattern).
 5. Initialize `tasks.md`.
@@ -148,7 +148,7 @@ Bundle schema files: Copy all 9 items from `references/schemas/` → `.agents/sk
 - [ ] `.agents/skills/*/SKILL.md` frontmatter name and description validated
 - [ ] workflow.md schema validated (6 required fields + verifiable exit conditions, no natural language)
 - [ ] workflow.md cycle check
-- [ ] `_workspace/_schemas/` all 8 files present
+- [ ] `_workspace/_schemas/` all 9 files present
 - [ ] `_workspace/state.py` exists and executable (`python _workspace/state.py --help`)
 - [ ] `AGENTS.md` harness section added — includes orchestrator entry point, skill path, agent list, workflow/checkpoint paths
 - [ ] `checkpoint.json` status is `in_progress`

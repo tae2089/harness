@@ -73,6 +73,7 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
    | Source (skill reference path)                          | Destination (workspace path)                            |
    | ------------------------------------------------------ | ------------------------------------------------------- |
    | `references/schemas/task.schema.json`                  | `_workspace/_schemas/task.schema.json`                  |
+   | `references/schemas/checkpoint.schema.json`            | `_workspace/_schemas/checkpoint.schema.json`            |
    | `references/schemas/workflow.template.md`              | `_workspace/_schemas/workflow.template.md`              |
    | `references/schemas/findings.template.md`              | `_workspace/_schemas/findings.template.md`              |
    | `references/schemas/tasks.template.md`                 | `_workspace/_schemas/tasks.template.md`                 |
@@ -89,7 +90,7 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
 
    **Operational rules:**
    - Worker agents must read `_workspace/_schemas/task.schema.json` before writing their own output.
-   - `checkpoint.json` writes are validated automatically by `python _workspace/state.py` — no separate schema validation needed by the orchestrator.
+   - `checkpoint.json` writes are validated by `python _workspace/state.py` against `_workspace/_schemas/checkpoint.schema.json` — no separate validation step needed by the orchestrator.
    - When the skill is updated, the new schema applies starting from the next init. Do not modify workspace schemas during an in-progress run (preserve the snapshot).
    - **SoT:** `references/schemas/`. The workspace copy is a snapshot at execution time.
 
@@ -112,7 +113,7 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
    | expert_pool              | + `[Routing Rationale]` (format: `"- {agent}: {reason} (matched keywords: {keywords})"`) |
 
 6. Initialize `tasks.md` — copy `_workspace/_schemas/tasks.template.md` (keep headers only, leave rows empty).
-7. Create `checkpoint.json` — populate all required fields (writes validated automatically by `python _workspace/state.py`):
+7. Create `checkpoint.json` — populate all required fields (validated against `_workspace/_schemas/checkpoint.schema.json` by `python _workspace/state.py` on every write):
 
 ```json
 {

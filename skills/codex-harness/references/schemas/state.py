@@ -31,21 +31,59 @@ CHECKPOINT = WORKSPACE / "checkpoint.json"
 TASKS_MD = WORKSPACE / "tasks.md"
 FINDINGS_MD = WORKSPACE / "findings.md"
 TASK_GLOB = str(WORKSPACE / "tasks" / "task_*.json")
+_CHECKPOINT_SCHEMA = WORKSPACE / "_schemas" / "checkpoint.schema.json"
 
 _HISTORY_FIELDS = frozenset({"stage_history", "step_history"})
-
-_CHECKPOINT_REQUIRED = frozenset({
-    "execution_id", "plan_name", "status", "current_stage", "current_step",
-    "active_pattern", "stage_history", "step_history", "stage_artifacts",
-    "handoff_chain", "tasks_snapshot", "shared_variables", "last_updated",
-})
-_CHECKPOINT_ALLOWED = _CHECKPOINT_REQUIRED | frozenset({"blocked_reason", "blocked_agent"})
-_CHECKPOINT_STATUS_ENUM = {"in_progress", "partial", "blocked", "completed"}
-_CHECKPOINT_PATTERN_ENUM = {
-    "pipeline", "fan_out_fan_in", "expert_pool",
-    "producer_reviewer", "supervisor", "hierarchical", "handoff",
-}
 _TS_RE = re.compile(r"^\d{8}_\d{6}$")
+
+_CP_RULES: "dict | None" = None
+
+
+def _parse_cp_schema() -> dict:
+    if not _CHECKPOINT_SCHEMA.exists():
+        sys.exit(f"ERROR: schema not found: {_CHECKPOINT_SCHEMA}\nRun Step 1 (schema sync) first.")
+    s = json.loads(_CHECKPOINT_SCHEMA.read_text())
+    props = s.get("properties", {})
+
+    def _ts(p: dict) -> frozenset:
+        return frozenset(k for k, v in p.items() if v.get("pattern") == "^[0-9]{8}_[0-9]{6}$")
+
+    sh = props.get("stage_history", {}).get("items", {})
+    ph = props.get("step_history", {}).get("items", {})
+    ph_props = ph.get("properties", {})
+    ph_int = frozenset(k for k, v in ph_props.items() if "minimum" in v)
+
+    conditionals = []
+    for clause in s.get("allOf", []):
+        const = clause.get("if", {}).get("properties", {}).get("status", {}).get("const")
+        req = frozenset(clause.get("then", {}).get("required", []))
+        if const:
+            conditionals.append((const, req))
+
+    return {
+        "required":      frozenset(s.get("required", [])),
+        "allowed":       frozenset(props.keys()),
+        "status_enum":   frozenset(props.get("status", {}).get("enum", [])),
+        "pattern_enum":  frozenset(props.get("active_pattern", {}).get("enum", [])),
+        "ts_top":        _ts(props),
+        "plan_minlen":   props.get("plan_name", {}).get("minLength", 1),
+        "blocked_pat":   props.get("blocked_agent", {}).get("pattern"),
+        "sh_str_req":    frozenset(sh.get("required", [])) - _ts(sh.get("properties", {})),
+        "sh_ts":         _ts(sh.get("properties", {})),
+        "ph_str_req":    frozenset(ph.get("required", [])) - _ts(ph_props) - ph_int,
+        "ph_ts":         _ts(ph_props),
+        "ph_int_min":    {k: ph_props[k]["minimum"] for k in ph_int},
+        "snap_required": frozenset(props.get("tasks_snapshot", {}).get("required", [])),
+        "conditionals":  conditionals,
+    }
+
+
+def _cp_rules() -> dict:
+    global _CP_RULES
+    if _CP_RULES is None:
+        _CP_RULES = _parse_cp_schema()
+    return _CP_RULES
+
 
 _TASK_REQUIRED = frozenset({"id", "agent", "stage", "step", "status", "timestamp"})
 _TASK_ALLOWED = _TASK_REQUIRED | frozenset({"evidence", "artifact", "blocked_reason", "iterations"})
@@ -57,53 +95,62 @@ _AGENT_RE = re.compile(r"^@[a-zA-Z0-9_-]+$")
 # ── validators ────────────────────────────────────────────────────────────────
 
 def _errors_checkpoint(data: dict) -> list[str]:
+    r = _cp_rules()
     errs: list[str] = []
-    extra = data.keys() - _CHECKPOINT_ALLOWED
+
+    extra = data.keys() - r["allowed"]
     if extra:
         errs.append(f"extra fields not allowed: {sorted(extra)}")
-    missing = _CHECKPOINT_REQUIRED - data.keys()
+    missing = r["required"] - data.keys()
     if missing:
         errs.append(f"missing required fields: {sorted(missing)}")
-    if not data.get("plan_name"):
+    plan = data.get("plan_name")
+    if plan is not None and (not isinstance(plan, str) or len(plan) < r["plan_minlen"]):
         errs.append("plan_name must be a non-empty string")
-    if "status" in data and data["status"] not in _CHECKPOINT_STATUS_ENUM:
-        errs.append(f"status '{data['status']}' not in {sorted(_CHECKPOINT_STATUS_ENUM)}")
-    if "active_pattern" in data and data["active_pattern"] not in _CHECKPOINT_PATTERN_ENUM:
-        errs.append(f"active_pattern '{data['active_pattern']}' not in {sorted(_CHECKPOINT_PATTERN_ENUM)}")
-    for ts_field in ("execution_id", "last_updated"):
-        if ts_field in data and not _TS_RE.match(str(data[ts_field])):
-            errs.append(f"{ts_field} must match YYYYMMDD_HHMMSS, got '{data[ts_field]}'")
-    if data.get("status") == "blocked":
-        for f in ("blocked_reason", "blocked_agent"):
-            if not data.get(f):
-                errs.append(f"status=blocked requires '{f}'")
-        agent = data.get("blocked_agent", "")
-        if agent and not _AGENT_RE.match(str(agent)):
-            errs.append(f"blocked_agent '{agent}' must match ^@[a-zA-Z0-9_-]+$")
+    if "status" in data and r["status_enum"] and data["status"] not in r["status_enum"]:
+        errs.append(f"status '{data['status']}' not in {sorted(r['status_enum'])}")
+    if "active_pattern" in data and r["pattern_enum"] and data["active_pattern"] not in r["pattern_enum"]:
+        errs.append(f"active_pattern '{data['active_pattern']}' not in {sorted(r['pattern_enum'])}")
+    for f in r["ts_top"]:
+        if f in data and not _TS_RE.match(str(data[f])):
+            errs.append(f"{f} must match YYYYMMDD_HHMMSS, got '{data[f]}'")
+    for status_const, then_req in r["conditionals"]:
+        if data.get("status") == status_const:
+            for f in then_req:
+                if not data.get(f):
+                    errs.append(f"status={status_const} requires '{f}'")
+            agent = data.get("blocked_agent", "")
+            if agent and r["blocked_pat"] and not re.match(r["blocked_pat"], str(agent)):
+                errs.append(f"blocked_agent '{agent}' must match {r['blocked_pat']}")
     snap = data.get("tasks_snapshot")
     if snap is not None:
-        if not isinstance(snap.get("done"), list):
+        for f in r["snap_required"]:
+            if f not in snap:
+                errs.append(f"tasks_snapshot.{f} is required")
+        if "done" in snap and not isinstance(snap["done"], list):
             errs.append("tasks_snapshot.done must be an array")
-        if "current" not in snap:
-            errs.append("tasks_snapshot.current is required")
-        elif snap["current"] is not None and not isinstance(snap["current"], str):
+        if "current" in snap and snap["current"] is not None and not isinstance(snap["current"], str):
             errs.append("tasks_snapshot.current must be string or null")
     for i, item in enumerate(data.get("stage_history", [])):
-        if not item.get("stage"):
-            errs.append(f"stage_history[{i}].stage is required and non-empty")
-        ca = item.get("completed_at", "")
-        if not _TS_RE.match(str(ca)):
-            errs.append(f"stage_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
+        for f in r["sh_str_req"]:
+            if not item.get(f):
+                errs.append(f"stage_history[{i}].{f} is required and non-empty")
+        for f in r["sh_ts"]:
+            ca = item.get(f, "")
+            if not _TS_RE.match(str(ca)):
+                errs.append(f"stage_history[{i}].{f} must match YYYYMMDD_HHMMSS, got '{ca}'")
     for i, item in enumerate(data.get("step_history", [])):
-        for f in ("stage", "step"):
+        for f in r["ph_str_req"]:
             if not item.get(f):
                 errs.append(f"step_history[{i}].{f} is required and non-empty")
-        ca = item.get("completed_at", "")
-        if not _TS_RE.match(str(ca)):
-            errs.append(f"step_history[{i}].completed_at must match YYYYMMDD_HHMMSS, got '{ca}'")
-        iters = item.get("iterations")
-        if not isinstance(iters, int) or iters < 1:
-            errs.append(f"step_history[{i}].iterations must be integer >= 1, got '{iters}'")
+        for f in r["ph_ts"]:
+            ca = item.get(f, "")
+            if not _TS_RE.match(str(ca)):
+                errs.append(f"step_history[{i}].{f} must match YYYYMMDD_HHMMSS, got '{ca}'")
+        for f, minimum in r["ph_int_min"].items():
+            val = item.get(f)
+            if not isinstance(val, int) or val < minimum:
+                errs.append(f"step_history[{i}].{f} must be integer >= {minimum}, got '{val}'")
     return errs
 
 
