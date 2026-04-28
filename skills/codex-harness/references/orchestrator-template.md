@@ -28,14 +28,14 @@ description: "{Domain} harness orchestrator. Coordinates a virtual team through 
 
 ### Step 0: Request Routing + Context Check
 
-The orchestrator is the routing authority. **Loading this skill does not imply running the full durable workflow** — classify the request first and take the lightest sufficient path.
+The orchestrator is the routing authority. **Loading this skill does not imply running the full durable workflow** — classify the request first and choose the smallest path that satisfies it.
 
-| Request type | Action |
-| ------------ | ------ |
-| Simple query / explanation / single-file read | Respond directly — no subagent spawn, no workspace init |
-| Targeted task fitting one agent | Spawn one focused subagent → return result |
-| Multi-agent but no persistent state needed | Spawn selected agents only → return result |
-| Complex / multi-stage / requires resumability | Proceed to checkpoint routing below → Step 1 |
+| Tier | Signals | Action |
+| ---- | ------- | ------ |
+| **Local** | Brief explanation, file lookup, simple read-only answer | Respond directly — no subagent spawn, no workspace init |
+| **Single worker** | Focused research, planning, implementation, review, security, test, or docs work | Spawn one targeted subagent → return result |
+| **Small team** | Task needing 2–3 adjacent roles | Spawn selected agents only → return result |
+| **Full workflow** | Large multi-stage work requiring checkpoint/resume, or formal requirements → design → implementation → QA → security → tests → docs pipeline | Proceed to checkpoint routing below → Step 1 |
 
 > **Subagent gate:** Unless the user has explicitly authorized subagent spawning in this session, ask before spawning. Direct worker calls are permitted only when selected by this orchestrator.
 
