@@ -56,12 +56,12 @@ PROCEDURE plan_mode(user_request):
 
 ## Useful Slash Commands
 
-| Command    | Purpose                                                          |
-| ---------- | ---------------------------------------------------------------- |
-| `/plan`    | Toggle Plan Mode (same as Shift+Tab)                             |
-| `/compact` | Summarize previous context in a long thread — saves context      |
-| `/fork`    | Branch while preserving the current thread — use for experiments |
-| `/resume`  | Resume a saved conversation                                      |
+| Command    | Purpose                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| `/plan`    | Toggle Plan Mode (same as Shift+Tab)                                    |
+| `/compact` | Summarize previous context in a long thread — saves context             |
+| `/fork`    | Branch while preserving the current thread — use for experiments        |
+| `/resume`  | Resume a saved conversation                                             |
 | `/review`  | Code review — compare base branch, uncommitted changes, specific commit |
 
 > **Thread Strategy:** 1 harness = 1 thread. Use `/compact` when context grows large. Use `/fork` for branching experiments. Start a new thread when the unit of work changes.
@@ -72,12 +72,12 @@ PROCEDURE plan_mode(user_request):
 
 Check for the existence of `.codex/agents/`, `.codex/skills/`, `AGENTS.md`, `_workspace/checkpoint.json`:
 
-| State                         | Mode          | Entry Phase                              |
-| ----------------------------- | ------------- | ---------------------------------------- |
-| None exist                    | New build     | Phase 1                                  |
-| Some exist                    | Expansion     | Phase 1 (see expansion-matrix.md)        |
-| checkpoint.json `in_progress` | Resume        | Resume from Phase 5                      |
-| checkpoint.json `blocked`     | Ops/Modify    | Resolve blockage, then resume Phase 5    |
+| State                         | Mode       | Entry Phase                           |
+| ----------------------------- | ---------- | ------------------------------------- |
+| None exist                    | New build  | Phase 1                               |
+| Some exist                    | Expansion  | Phase 1 (see expansion-matrix.md)     |
+| checkpoint.json `in_progress` | Resume     | Resume from Phase 5                   |
+| checkpoint.json `blocked`     | Ops/Modify | Resolve blockage, then resume Phase 5 |
 
 ### Phase 1: Domain Analysis + Pattern Matching
 
@@ -91,15 +91,15 @@ Check for the existence of `.codex/agents/`, `.codex/skills/`, `AGENTS.md`, `_wo
 2. Select pattern (see `references/agent-design-patterns.md`).
 3. Determine `sandbox_mode` for each agent:
 
-   | Agent Type                              | sandbox_mode         | Rationale                                                                                         |
-   | --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
-   | Researcher / Analyst                    | `read-only`          | File reading and web research only, no writes                                                     |
-   | Architect / Planner *(consultative)*    | `read-only`          | Returns analysis/opinion as text only — orchestrator captures output and writes to findings.md    |
-   | Architect / Planner *(document-producing)* | `workspace-write` | Directly writes design docs (architecture.md, plan.md, etc.) to `_workspace/{plan_name}/`        |
-   | Coder / Developer                       | `workspace-write`    | Directly creates and modifies code and documentation files                                        |
-   | Reviewer / QA Inspector                 | `workspace-write`    | Creates report files + runs tests                                                                 |
-   | State Manager                           | `workspace-write`    | CRUD on checkpoint, task, and findings files                                                      |
-   | Operator / Deployer                     | `danger-full-access` | Executes external processes such as kubectl, terraform, etc.                                      |
+   | Agent Type                                 | sandbox_mode         | Rationale                                                                                      |
+   | ------------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------- |
+   | Researcher / Analyst                       | `read-only`          | File reading and web research only, no writes                                                  |
+   | Architect / Planner _(consultative)_       | `read-only`          | Returns analysis/opinion as text only — orchestrator captures output and writes to findings.md |
+   | Architect / Planner _(document-producing)_ | `workspace-write`    | Directly writes design docs (architecture.md, plan.md, etc.) to `_workspace/{plan_name}/`      |
+   | Coder / Developer                          | `workspace-write`    | Directly creates and modifies code and documentation files                                     |
+   | Reviewer / QA Inspector                    | `workspace-write`    | Creates report files + runs tests                                                              |
+   | State Manager                              | `workspace-write`    | CRUD on checkpoint, task, and findings files                                                   |
+   | Operator / Deployer                        | `danger-full-access` | Executes external processes such as kubectl, terraform, etc.                                   |
 
    > **Architect/Planner mode selection:** Use `read-only` (consultative) when the orchestrator instructs "analyze and return opinion." Use `workspace-write` (document-producing) when the orchestrator instructs "write the design doc to `_workspace/`." **Never assign `read-only` to an agent whose prompt says to write files** — this will silently fail.
 
@@ -157,15 +157,15 @@ Bundle schema files: Copy all 10 items from `references/schemas/` → `.codex/sk
 
 Based on Codex subagent spawn. Default parallel execution — sequential execution is separated by skill directives per stage:
 
-| Pattern             | Codex Coordination Method                                                                    |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| `pipeline`          | Sequential spawn per stage — confirm previous stage `task_*.json` status=done before next   |
-| `fan_out_fan_in`    | Parallel spawn → ATOMIC aggregation after all complete                                       |
-| `producer_reviewer` | Spawn producer → check task → spawn reviewer → check verdict                                |
-| `expert_pool`       | Automatic routing based on Codex description                                                 |
-| `supervisor`        | Dynamic spawn based on tasks.md claim                                                        |
-| `hierarchical`      | Spawn team lead → team lead spawns workers (`max_depth=2` required: `.codex/config.toml`)   |
-| `handoff`           | Parse `[NEXT_AGENT:name]` → sequential spawn                                                 |
+| Pattern             | Codex Coordination Method                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `pipeline`          | Sequential spawn per stage — confirm previous stage `task_*.json` status=done before next |
+| `fan_out_fan_in`    | Parallel spawn → ATOMIC aggregation after all complete                                    |
+| `producer_reviewer` | Spawn producer → check task → spawn reviewer → check verdict                              |
+| `expert_pool`       | Automatic routing based on Codex description                                              |
+| `supervisor`        | Dynamic spawn based on tasks.md claim                                                     |
+| `hierarchical`      | Spawn team lead → team lead spawns workers (`max_depth=2` required: `.codex/config.toml`) |
+| `handoff`           | Parse `[NEXT_AGENT:name]` → sequential spawn                                              |
 
 ## Output Artifacts
 

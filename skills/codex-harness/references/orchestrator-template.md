@@ -26,7 +26,36 @@ description: "{Domain} harness orchestrator. Coordinates a virtual team through 
 
 ## Workflow
 
-### Step 0: Context Check (Durable Execution)
+### Step 0: Request Routing
+
+The orchestrator is the routing authority. It classifies every incoming request before deciding an execution path. **Loading this skill does not imply running the full durable workflow.**
+
+#### Step 0.1: Request Classification
+
+Evaluate the request and select a path:
+
+| Request type | Path |
+| ------------ | ---- |
+| Simple query / explanation / single-file read | Respond directly — no subagent spawn, no workspace init |
+| Targeted task fitting one agent | Spawn one focused subagent → return result |
+| Multi-agent but no persistent state needed | Spawn selected agents only → return result |
+| Complex / multi-stage / requires resumability | GOTO Step 0.2 → Step 1 (full durable workflow) |
+
+> When uncertain between paths, prefer the lighter option and confirm with the user.
+
+#### Step 0.2: Subagent Authorization Gate
+
+Subagent spawning requires session-level authorization:
+- **Authorized** (user has explicitly approved spawning in this session): spawn only the agents selected in Step 0.1.
+- **Not yet authorized**: ask before spawning. Wait for approval, then proceed.
+
+Direct worker calls are permitted **only** when selected by this orchestrator. Unsolicited direct worker calls are prohibited.
+
+---
+
+#### Step 0.3: Context Check (Durable Execution)
+
+_Only reached when Step 0.1 selects the full durable workflow path._
 
 Determine the entry path based on the state of `_workspace/checkpoint.json`. **Evaluate the table top-to-bottom in order** and execute the action of the first matching row.
 
