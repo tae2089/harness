@@ -25,8 +25,8 @@ description: "{{DESCRIPTION}}. Always use this skill for follow-up work (modific
 
 ## Virtual Team
 
-| Agent           | Role | Output |
-| --------------- | ---- | ------ |
+| Agent           | Type                   | Role   | Skill   | Output |
+| --------------- | ---------------------- | ------ | ------- | ------ |
 | {{AGENT_TABLE}} |
 
 > Orchestrator model: `gpt-5.5` (responsible for design and reasoning). Verify model ID in: `references/schemas/models.md`
