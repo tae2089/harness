@@ -42,7 +42,7 @@
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required when status=blocked. Concrete blocker description for 사용자 확인 요청 routing."
+      "description": "Required when status=blocked. Concrete blocker description for user confirmation request routing."
     },
     "timestamp": {
       "type": "string",

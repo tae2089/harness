@@ -115,7 +115,7 @@
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required when status=blocked. Surface to user via 사용자 확인 요청."
+      "description": "Required when status=blocked. Surface to user via user confirmation request."
     },
     "blocked_agent": {
       "type": "string",

@@ -1,175 +1,175 @@
 ---
 name: codex-harness
-description: "Codex CLI 환경에서 전문 서브에이전트 팀을 설계하는 메타 스킬. 도메인 분석 → 에이전트 TOML 정의(.codex/agents/) → 스킬 생성(.agents/skills/) → AGENTS.md 초기화. 트리거: '코덱스 하네스 구성해줘', 'codex 에이전트 팀 만들어줘', 'codex harness 구축', '{도메인} codex 자동화'. 후속 작업(수정/보완/재실행/확장) 시에도 반드시 이 스킬 사용."
+description: "A meta-skill for designing a specialized subagent team in the Codex CLI environment. Domain analysis → Agent TOML definitions (.codex/agents/) → Skill creation (.agents/skills/) → AGENTS.md initialization. Triggers: 'set up codex harness', 'create codex agent team', 'build codex harness', '{domain} codex automation'. Also use this skill for follow-up tasks (modification/refinement/re-execution/expansion)."
 ---
 
 # Skill: Codex Harness Orchestrator
 
-> **시작 전 필수:** `references/usage-examples.md` 시나리오와 발화 매칭 확인.
+> **Required before starting:** Match the `references/usage-examples.md` scenarios against the user's utterance.
 
-## 핵심 원칙
+## Core Principles
 
-1. **7대 아키텍처 패턴:** Pipeline · Fan-out/Fan-in · Expert Pool · Producer-Reviewer · Supervisor · Hierarchical · Handoff
-2. **에이전트 정의:** TOML 포맷 — `.codex/agents/{name}.toml`
-3. **스킬 포맷:** SKILL.md — `.agents/skills/{name}/SKILL.md`
-4. **프로젝트 컨텍스트:** `AGENTS.md` — 경로 계층: 글로벌 `~/.codex/AGENTS.md` → 레포 `AGENTS.md` → 서브디렉토리 (더 구체적 파일이 우선). 짧고 정확한 파일이 길고 모호한 것보다 낫다.
-5. **상태 영속성:** `_workspace/` 파일 기반 브로커링
-6. **권한 제어:** TOML `sandbox_mode` 필드 — `read-only | workspace-write | danger-full-access`
-7. **서브에이전트 제약:** 오케스트레이터만 서브에이전트 스폰. `max_depth=1`(기본값) 강제.
-8. **파일 I/O:** `apply_patch` 우선 (외과적 수정). 신규 파일은 shell write.
-9. **Zero-Tolerance Failure Protocol:** 임의 Skip 절대 금지. 최대 2회 재시도(총 3회) → `Blocked`.
+1. **7 Architecture Patterns:** Pipeline · Fan-out/Fan-in · Expert Pool · Producer-Reviewer · Supervisor · Hierarchical · Handoff
+2. **Agent Definition:** TOML format — `.codex/agents/{name}.toml`
+3. **Skill Format:** SKILL.md — `.agents/skills/{name}/SKILL.md`
+4. **Project Context:** `AGENTS.md` — Path hierarchy: global `~/.codex/AGENTS.md` → repo `AGENTS.md` → subdirectory (more specific file takes precedence). Short and precise files are better than long and vague ones.
+5. **State Persistence:** `_workspace/` file-based brokering
+6. **Permission Control:** TOML `sandbox_mode` field — `read-only | workspace-write | danger-full-access`
+7. **Subagent Constraint:** Only the orchestrator may spawn subagents. `max_depth=1` (default) enforced.
+8. **File I/O:** Prefer `apply_patch` (surgical edits). New files via shell write.
+9. **Zero-Tolerance Failure Protocol:** Arbitrary skipping is strictly prohibited. Maximum 2 retries (3 attempts total) → `Blocked`.
 
 ## Plan Mode
 
-**다단계 하네스 구축 전 항상 Plan Mode 절차를 먼저 실행한다.**
+**Always run the Plan Mode procedure before building a multi-stage harness.**
 
-- 활성화: `request_user_input` 으로 컨텍스트 수집 → 확인 질문 → 강한 계획 수립 후 구현
-- 필수 케이스: 신규 구축, 아키텍처 변경, Stage 추가
-- 생략 가능: 스킬 체크리스트 단순 수정 등 범위 명확한 단건 작업
+- Activation: Collect context via `request_user_input` → clarifying questions → build a solid plan, then implement
+- Required cases: New builds, architecture changes, Stage additions
+- May be skipped: Simple single-item tasks with a clearly scoped change (e.g., minor skill checklist edits)
 
-### Plan Mode 절차 (request_user_input 기반)
+### Plan Mode Procedure (request_user_input-based)
 
 ```
 PROCEDURE plan_mode(user_request):
-    // 1. 컨텍스트 수집
+    // 1. Context collection
     questions ← []
-    IF 도메인·목표 불명확:
-        questions.append("구축하려는 하네스의 목표와 도메인을 구체적으로 설명해주세요.")
-    IF 패턴 결정 불가:
-        questions.append("에이전트 팀 구성 방식 (Pipeline·Fan-out·Supervisor 등)에 선호가 있으신가요?")
-    IF 에이전트 수·역할 불명확:
-        questions.append("필요한 에이전트 역할을 나열해주세요.")
+    IF domain/goal is unclear:
+        questions.append("Please describe the goal and domain of the harness you want to build in detail.")
+    IF pattern cannot be determined:
+        questions.append("Do you have a preference for the agent team structure (Pipeline, Fan-out, Supervisor, etc.)?")
+    IF agent count/roles are unclear:
+        questions.append("Please list the agent roles you need.")
 
-    IF questions 비어있지 않음:
-        CALL request_user_input(questions)   // 한 번에 묶어서 질문
-        RETURN                               // 응답 수신 후 재진입
+    IF questions is not empty:
+        CALL request_user_input(questions)   // Bundle all questions into one call
+        RETURN                               // Re-enter after receiving responses
 
-    // 2. 계획 수립 및 사용자 승인
-    plan_summary ← 도메인·패턴·에이전트 목록·Stage/Step 구조 요약
+    // 2. Plan presentation and user approval
+    plan_summary ← Summary of domain, pattern, agent list, Stage/Step structure
     CALL request_user_input(
-        "다음 계획으로 하네스를 구축합니다. 진행할까요?\n\n{plan_summary}"
+        "We will build the harness with the following plan. Shall we proceed?\n\n{plan_summary}"
     )
-    RETURN                                   // 승인 확인 후 Phase 1 진입
+    RETURN                                   // Enter Phase 1 after approval
 ```
 
-> `request_user_input` 은 단일 호출로 여러 질문을 묶어 전달한다. 불필요한 다중 호출 금지.
+> `request_user_input` delivers multiple questions in a single call. Multiple unnecessary calls are prohibited.
 
-## 유용한 슬래시 커맨드
+## Useful Slash Commands
 
-| 커맨드     | 용도                                               |
-| ---------- | -------------------------------------------------- |
-| `/plan`    | Plan Mode 토글 (Shift+Tab과 동일)                  |
-| `/compact` | 긴 스레드에서 이전 컨텍스트 요약 — 컨텍스트 절약   |
-| `/fork`    | 현재 스레드 보존하며 분기 — 실험적 변경 시 사용    |
-| `/resume`  | 저장된 대화 재개                                   |
-| `/review`  | 코드 리뷰 — base 브랜치 비교·미커밋 변경·특정 커밋 |
+| Command    | Purpose                                                          |
+| ---------- | ---------------------------------------------------------------- |
+| `/plan`    | Toggle Plan Mode (same as Shift+Tab)                             |
+| `/compact` | Summarize previous context in a long thread — saves context      |
+| `/fork`    | Branch while preserving the current thread — use for experiments |
+| `/resume`  | Resume a saved conversation                                      |
+| `/review`  | Code review — compare base branch, uncommitted changes, specific commit |
 
-> **스레드 전략:** 하네스 1개 = 스레드 1개. 컨텍스트 비대해지면 `/compact`. 분기 실험은 `/fork`. 작업 단위가 달라지면 새 스레드.
+> **Thread Strategy:** 1 harness = 1 thread. Use `/compact` when context grows large. Use `/fork` for branching experiments. Start a new thread when the unit of work changes.
 
-## 워크플로우
+## Workflow
 
-### Phase 0: 현황 감사 (모드 분기)
+### Phase 0: Status Audit (Mode Branching)
 
-`.codex/agents/`, `.agents/skills/`, `AGENTS.md`, `_workspace/checkpoint.json` 존재 여부 확인:
+Check for the existence of `.codex/agents/`, `.agents/skills/`, `AGENTS.md`, `_workspace/checkpoint.json`:
 
-| 상태                          | 모드      | 진입 Phase                         |
-| ----------------------------- | --------- | ---------------------------------- |
-| 전부 미존재                   | 신규 구축 | Phase 1                            |
-| 일부 존재                     | 기존 확장 | Phase 1 (expansion-matrix.md 참조) |
-| checkpoint.json `in_progress` | Resume    | Phase 5 재개                       |
-| checkpoint.json `blocked`     | 운영/수정 | 차단 해소 후 Phase 5 재개          |
+| State                         | Mode          | Entry Phase                              |
+| ----------------------------- | ------------- | ---------------------------------------- |
+| None exist                    | New build     | Phase 1                                  |
+| Some exist                    | Expansion     | Phase 1 (see expansion-matrix.md)        |
+| checkpoint.json `in_progress` | Resume        | Resume from Phase 5                      |
+| checkpoint.json `blocked`     | Ops/Modify    | Resolve blockage, then resume Phase 5    |
 
-### Phase 1: 도메인 분석 + 패턴 매칭
+### Phase 1: Domain Analysis + Pattern Matching
 
-1. 사용자 요청 분석 → 도메인·목표·제약 추출.
-2. `references/usage-examples.md` 시나리오 매칭 → 패턴·Stage/Step 구조 도출.
-3. 비트리거 발화 확인 — false-positive 방지.
+1. Analyze user request → Extract domain, goals, and constraints.
+2. Match against `references/usage-examples.md` scenarios → Derive pattern and Stage/Step structure.
+3. Check non-trigger utterances — prevent false positives.
 
-### Phase 2: 가상 팀 설계
+### Phase 2: Virtual Team Design
 
-1. 에이전트 역할 분리 (단일 책임 원칙).
-2. 패턴 선택 (`references/agent-design-patterns.md` 참조).
-3. 각 에이전트 `sandbox_mode` 결정:
+1. Separate agent responsibilities (single responsibility principle).
+2. Select pattern (see `references/agent-design-patterns.md`).
+3. Determine `sandbox_mode` for each agent:
 
-   | 에이전트 유형           | sandbox_mode         | 판단 기준                                                     |
-   | ----------------------- | -------------------- | ------------------------------------------------------------- |
-   | Researcher / Analyst    | `read-only`          | 파일 읽기·웹 조사만, 쓰기 없음                                |
-   | Architect / Planner     | `read-only`          | 설계 산출물을 findings.md에만 보고 (오케스트레이터가 대신 씀) |
-   | Coder / Developer       | `workspace-write`    | 코드·문서 파일 직접 생성·수정                                 |
-   | Reviewer / QA Inspector | `workspace-write`    | 리포트 파일 생성 + 테스트 실행                                |
-   | State Manager           | `workspace-write`    | checkpoint·task·findings 파일 CRUD                            |
-   | Operator / Deployer     | `danger-full-access` | kubectl·terraform 등 외부 프로세스 실행                       |
+   | Agent Type              | sandbox_mode         | Rationale                                                               |
+   | ----------------------- | -------------------- | ----------------------------------------------------------------------- |
+   | Researcher / Analyst    | `read-only`          | File reading and web research only, no writes                           |
+   | Architect / Planner     | `read-only`          | Reports design output to findings.md only (orchestrator writes for it)  |
+   | Coder / Developer       | `workspace-write`    | Directly creates and modifies code and documentation files              |
+   | Reviewer / QA Inspector | `workspace-write`    | Creates report files + runs tests                                       |
+   | State Manager           | `workspace-write`    | CRUD on checkpoint, task, and findings files                            |
+   | Operator / Deployer     | `danger-full-access` | Executes external processes such as kubectl, terraform, etc.            |
 
-4. **서브에이전트 제약 확인:** 오케스트레이터 아닌 에이전트는 subagent spawn 금지.
+4. **Subagent constraint check:** Agents other than the orchestrator must not spawn subagents.
 
-### Phase 3: 에이전트 TOML 생성
+### Phase 3: Agent TOML Creation
 
-`.codex/agents/{name}.toml` 생성. 기준: `references/schemas/agent-worker.template.toml`.
+Create `.codex/agents/{name}.toml`. Reference: `references/schemas/agent-worker.template.toml`.
 
-필수 필드: `name`, `description`, `developer_instructions`, `model`, `sandbox_mode`, `model_reasoning_effort`.
+Required fields: `name`, `description`, `developer_instructions`, `model`, `sandbox_mode`, `model_reasoning_effort`.
 
-> `model_reasoning_effort` 기준: `low`(StateManager) / `medium`(Analyst·Researcher) / `high`(Coder·QA·Reviewer) / `xhigh`(Orchestrator·Architect). 상세: `references/schemas/models.md`.
+> `model_reasoning_effort` guidelines: `low` (StateManager) / `medium` (Analyst, Researcher) / `high` (Coder, QA, Reviewer) / `xhigh` (Orchestrator, Architect). Details: `references/schemas/models.md`.
 
-> **모델 ID SoT:** `references/schemas/models.md` — 임의 추측 금지.
+> **Model ID SoT:** `references/schemas/models.md` — do not guess arbitrary model IDs.
 
-### Phase 4: 절차 스킬 생성
+### Phase 4: Procedure Skill Creation
 
-`.agents/skills/{orchestrator-name}/SKILL.md` 작성. 기준: `references/schemas/agent-orchestrator.template.md`.
+Write `.agents/skills/{orchestrator-name}/SKILL.md`. Reference: `references/schemas/agent-orchestrator.template.md`.
 
-Schema 번들 동봉: `references/schemas/` 9종 → `.agents/skills/{name}/references/schemas/` 복사.
+Bundle schema files: Copy all 9 schemas from `references/schemas/` → `.agents/skills/{name}/references/schemas/`.
 
-### Phase 5: 통합 및 오케스트레이션
+### Phase 5: Integration and Orchestration
 
-1. `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`, `_workspace/_schemas/` 생성.
-2. Schema 동기화: `references/schemas/` 9종 → `_workspace/_schemas/`.
-3. `workflow.md` 작성 — Stage-Step 구조, 6 필수 필드, 검증 가능 종료 조건.
-4. `findings.md` 초기화 (패턴별 섹션).
-5. `tasks.md` 초기화.
-6. `checkpoint.json` 생성 (status: `in_progress`).
-7. **AGENTS.md 갱신** — 하네스 포인터 추가:
+1. Create `_workspace/`, `_workspace/{plan_name}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
+2. Schema sync: Copy all 9 schemas from `references/schemas/` → `_workspace/_schemas/`.
+3. Write `workflow.md` — Stage-Step structure, 6 required fields, verifiable exit conditions.
+4. Initialize `findings.md` (sections by pattern).
+5. Initialize `tasks.md`.
+6. Create `checkpoint.json` (status: `in_progress`).
+7. **Update AGENTS.md** — Add harness pointer:
 
    ```markdown
    ## Harness: {plan_name}
 
-   - 에이전트: {에이전트 목록 + .codex/agents/ 경로}
-   - 스킬: {스킬 목록 + .agents/skills/ 경로}
-   - 워크플로우: \_workspace/workflow.md
-   - 체크포인트: \_workspace/checkpoint.json
+   - Agents: {agent list + .codex/agents/ paths}
+   - Skills: {skill list + .agents/skills/ paths}
+   - Workflow: \_workspace/workflow.md
+   - Checkpoint: \_workspace/checkpoint.json
    ```
 
-### Phase 6: 검증
+### Phase 6: Validation
 
-- [ ] `.codex/agents/*.toml` 필수 필드 완전 (name, description, developer_instructions, model, sandbox_mode, model_reasoning_effort)
-- [ ] `.agents/skills/*/SKILL.md` frontmatter name·description 검증
-- [ ] workflow.md 스키마 검증 (6 필수 필드 + 검증 가능 종료 조건, 자연어 금지)
-- [ ] workflow.md 사이클 검증
-- [ ] `_workspace/_schemas/` 9종 파일 존재
-- [ ] `AGENTS.md` 하네스 섹션 추가 확인
-- [ ] `checkpoint.json` status `in_progress`
+- [ ] `.codex/agents/*.toml` required fields complete (name, description, developer_instructions, model, sandbox_mode, model_reasoning_effort)
+- [ ] `.agents/skills/*/SKILL.md` frontmatter name and description validated
+- [ ] workflow.md schema validated (6 required fields + verifiable exit conditions, no natural language)
+- [ ] workflow.md cycle check
+- [ ] `_workspace/_schemas/` all 9 files present
+- [ ] `AGENTS.md` harness section added
+- [ ] `checkpoint.json` status is `in_progress`
 
-## 패턴별 Codex 조율 방식
+## Pattern-based Codex Coordination
 
-Codex subagent spawn 기반. 기본 병렬 실행 — 순차는 스킬 지시로 단계 분리:
+Based on Codex subagent spawn. Default parallel execution — sequential execution is separated by skill directives per stage:
 
-| 패턴                | Codex 조율 방식                                                            |
-| ------------------- | -------------------------------------------------------------------------- |
-| `pipeline`          | 단계별 sequential spawn — 이전 단계 `task_*.json` status=done 확인 후 다음 |
-| `fan_out_fan_in`    | 병렬 spawn → 전체 완료 후 ATOMIC aggregation                               |
-| `producer_reviewer` | producer spawn → task 확인 → reviewer spawn → verdict 확인                 |
-| `expert_pool`       | Codex description 기반 자동 라우팅                                         |
-| `supervisor`        | tasks.md claim 기반 동적 spawn                                             |
-| `hierarchical`      | 팀장 spawn → 팀장이 워커 spawn (`max_depth=2` 필요: `.codex/config.toml`)  |
-| `handoff`           | `[NEXT_AGENT:name]` 파싱 → 순차 spawn                                      |
+| Pattern             | Codex Coordination Method                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `pipeline`          | Sequential spawn per stage — confirm previous stage `task_*.json` status=done before next   |
+| `fan_out_fan_in`    | Parallel spawn → ATOMIC aggregation after all complete                                       |
+| `producer_reviewer` | Spawn producer → check task → spawn reviewer → check verdict                                |
+| `expert_pool`       | Automatic routing based on Codex description                                                 |
+| `supervisor`        | Dynamic spawn based on tasks.md claim                                                        |
+| `hierarchical`      | Spawn team lead → team lead spawns workers (`max_depth=2` required: `.codex/config.toml`)   |
+| `handoff`           | Parse `[NEXT_AGENT:name]` → sequential spawn                                                 |
 
-## 생성 산출물
+## Output Artifacts
 
 ```
-{프로젝트}/
+{project}/
 ├── .codex/
-│   ├── agents/{name}.toml              # 에이전트 정의 (TOML)
+│   ├── agents/{name}.toml              # Agent definition (TOML)
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
-│       └── references/schemas/         # 스키마 사본 (9종)
+│       └── references/schemas/         # Schema copies (9 files)
 ├── _workspace/
 │   ├── _schemas/
 │   ├── workflow.md
@@ -177,18 +177,18 @@ Codex subagent spawn 기반. 기본 병렬 실행 — 순차는 스킬 지시로
 │   ├── tasks.md
 │   ├── checkpoint.json
 │   └── tasks/task_{agent}_{id}.json
-└── AGENTS.md                           # 하네스 포인터 + 프로젝트 컨텍스트
+└── AGENTS.md                           # Harness pointer + project context
 ```
 
-## 에러 핸들링
+## Error Handling
 
-Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도 → 미해결 시 task\_\*.json status=blocked + HALT.
+Zero-Tolerance: Agent failure → maximum 2 retries → if unresolved, set task\_\*.json status=blocked + HALT.
 
-## 참고 문서
+## Reference Documents
 
-- `references/usage-examples.md` — 🚀 트리거 발화 시나리오 + 모드 매핑
-- `references/agent-design-patterns.md` — 7대 패턴 + Codex sandbox 권한 매핑
-- `references/orchestrator-template.md` — Step 0~5 의사코드 (Codex 버전)
-- `references/schemas/models.md` — ⚠️ 모델 ID 정본 (OpenAI)
-- `references/schemas/agent-worker.template.toml` — 워커 에이전트 TOML 기준
-- `references/schemas/` — 런타임 스키마 SoT (9종)
+- `references/usage-examples.md` — Trigger utterance scenarios + mode mapping
+- `references/agent-design-patterns.md` — 7 patterns + Codex sandbox permission mapping
+- `references/orchestrator-template.md` — Step 0~5 pseudocode (Codex version)
+- `references/schemas/models.md` — Model ID source of truth (OpenAI)
+- `references/schemas/agent-worker.template.toml` — Worker agent TOML reference
+- `references/schemas/` — Runtime schema SoT (9 files)

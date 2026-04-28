@@ -1,71 +1,71 @@
 <!--
-ORCHESTRATOR AGENT TEMPLATE — 변수 치환 후 `.agents/skills/{harness-name}/SKILL.md`로 저장.
-오케스트레이터는 agent .md가 아닌 skill SKILL.md 형태로 생성된다.
-모델 ID SoT: references/schemas/models.md (변경 시 반드시 models.md 먼저 확인)
+ORCHESTRATOR AGENT TEMPLATE — After variable substitution, save as `.agents/skills/{harness-name}/SKILL.md`.
+The orchestrator is generated as a skill SKILL.md, not as an agent .md file.
+Model ID SoT: references/schemas/models.md (always check models.md first before making changes)
 
-치환 변수:
-  {{SKILL_NAME}}        kebab-case 스킬 이름 (예: sso-dev-flow)
-  {{DESCRIPTION}}       pushy 설명 + 트리거 키워드 + 후속 작업 키워드
-  {{PLAN_NAME}}         _workspace 하위 디렉터리 이름 (예: sso)
-  {{AGENT_TABLE}}       가상 팀 테이블 행 (반복)
-  {{STAGE_STEP_SUMMARY}} workflow.md Stage/Step 구조 요약
+Substitution variables:
+  {{SKILL_NAME}}        kebab-case skill name (e.g. sso-dev-flow)
+  {{DESCRIPTION}}       pushy description + trigger keywords + follow-up action keywords
+  {{PLAN_NAME}}         subdirectory name under _workspace (e.g. sso)
+  {{AGENT_TABLE}}       virtual team table rows (repeated)
+  {{STAGE_STEP_SUMMARY}} workflow.md Stage/Step structure summary
 
-오케스트레이터만 subagent spawn 가능 — 워커 에이전트는 금지.
-모델은 thinking 티어 사용 (복잡 추론·다단계 조율 담당).
+Only the orchestrator can spawn subagents — worker agents are prohibited from doing so.
+Model uses the thinking tier (responsible for complex reasoning and multi-step coordination).
 -->
 
 ---
 
 name: {{SKILL_NAME}}
-description: "{{DESCRIPTION}}. 후속 작업(수정/보완/재실행) 시에도 반드시 이 스킬 사용."
+description: "{{DESCRIPTION}}. Always use this skill for follow-up work (modifications/enhancements/re-runs)."
 
 ---
 
 # Skill: {{SKILL_NAME}} Orchestrator
 
-## 가상 팀
+## Virtual Team
 
-| 에이전트        | 역할 | 산출물 |
+| Agent           | Role | Output |
 | --------------- | ---- | ------ |
 | {{AGENT_TABLE}} |
 
-> 오케스트레이터 모델: `gpt-5.5` (설계·추론 담당). 모델 ID 확인: `references/schemas/models.md`
+> Orchestrator model: `gpt-5.5` (responsible for design and reasoning). Verify model ID in: `references/schemas/models.md`
 
-## 워크플로우
+## Workflow
 
-### Step 0: 컨텍스트 확인 (Durable Execution)
+### Step 0: Context Check (Durable Execution)
 
-`references/orchestrator-template.md` Step 0 절차 적용. `_workspace/checkpoint.json` status별 분기:
+Apply `references/orchestrator-template.md` Step 0 procedure. Branch based on `_workspace/checkpoint.json` status:
 
-- `in_progress` → Resume (현재 stage/step부터 재개)
-- `completed` → 부분 재실행 or 신규 실행 사용자 확인
-- 미존재 → 신규 실행 (Step 1로 진행)
+- `in_progress` → Resume (continue from current stage/step)
+- `completed` → Confirm with user: partial re-run or fresh run
+- Not present → Fresh run (proceed to Step 1)
 
-### Step 1: 초기화
+### Step 1: Initialization
 
-1. `_workspace/{{PLAN_NAME}}/`, `_workspace/tasks/`, `_workspace/_schemas/` 디렉터리 생성.
-2. **스키마 동기화** — `references/schemas/` 파일 5종 + 에이전트 템플릿 3종을 `_workspace/_schemas/`로 shell `cat` → `apply_patch` 복사 (`references/orchestrator-template.md` Step 1.3 참조).
-3. `workflow.md` 작성 (`_workspace/_schemas/workflow.template.md` 변수 치환):
+1. Create directories: `_workspace/{{PLAN_NAME}}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
+2. **Schema synchronization** — Copy 5 schema files + 3 agent templates from `references/schemas/` to `_workspace/_schemas/` via shell `cat` → `apply_patch` (see `references/orchestrator-template.md` Step 1.3).
+3. Write `workflow.md` (variable substitution from `_workspace/_schemas/workflow.template.md`):
    {{STAGE_STEP_SUMMARY}}
-4. `findings.md` 초기화 (`_workspace/_schemas/findings.template.md` 기반).
-5. `tasks.md` 초기화 (`_workspace/_schemas/tasks.template.md` 기반).
-6. `checkpoint.json` 생성 (`_workspace/_schemas/checkpoint.schema.json` 스키마 준수):
+4. Initialize `findings.md` (based on `_workspace/_schemas/findings.template.md`).
+5. Initialize `tasks.md` (based on `_workspace/_schemas/tasks.template.md`).
+6. Create `checkpoint.json` (must conform to `_workspace/_schemas/checkpoint.schema.json` schema):
    ```json
    {
      "plan_name": "{{PLAN_NAME}}",
      "status": "in_progress",
-     "current_stage": "{첫 Stage 이름}",
-     "current_step": "{첫 Step 이름}",
-     "active_pattern": "{첫 Step 패턴}"
+     "current_stage": "{first Stage name}",
+     "current_step": "{first Step name}",
+     "active_pattern": "{first Step pattern}"
    }
    ```
-7. **workflow.md 스키마 검증** — 6 필수 필드 + 명명 컨벤션(placeholder 금지) + 검증 가능 종료 조건 + 패턴 enum. 위반 시 HALT (`references/orchestrator-template.md` Step 1.8 참조).
-8. **workflow.md 사이클 검증** (스키마 검증 통과 후).
+7. **workflow.md schema validation** — 6 required fields + naming convention (no placeholders) + verifiable exit conditions + pattern enum. Violations cause HALT (see `references/orchestrator-template.md` Step 1.8).
+8. **workflow.md cycle validation** (after passing schema validation).
 
-### Step 2: Step 실행 루프
+### Step 2: Step Execution Loop
 
-`references/orchestrator-template.md` Step 2 표준 절차 적용. 패턴별 에이전트 호출, 종료 조건 검사, Stage 게이트 처리, checkpoint.json 갱신.
+Apply `references/orchestrator-template.md` Step 2 standard procedure. Invoke agents per pattern, check exit conditions, handle Stage gates, update checkpoint.json.
 
-## 에러 핸들링
+## Error Handling
 
-Zero-Tolerance: 에이전트 실패 → 최대 2회 재시도(총 3회) → 미해결 시 `task_*.json` status=blocked + 사용자 확인 요청. 임의 Skip 절대 금지.
+Zero-Tolerance: agent failure → up to 2 retries (3 total) → if unresolved, set `task_*.json` status=blocked and request user confirmation. Arbitrary skipping is strictly prohibited.
