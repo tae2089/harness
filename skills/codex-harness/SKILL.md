@@ -91,14 +91,17 @@ Check for the existence of `.codex/agents/`, `.agents/skills/`, `AGENTS.md`, `_w
 2. Select pattern (see `references/agent-design-patterns.md`).
 3. Determine `sandbox_mode` for each agent:
 
-   | Agent Type              | sandbox_mode         | Rationale                                                               |
-   | ----------------------- | -------------------- | ----------------------------------------------------------------------- |
-   | Researcher / Analyst    | `read-only`          | File reading and web research only, no writes                           |
-   | Architect / Planner     | `read-only`          | Reports design output to findings.md only (orchestrator writes for it)  |
-   | Coder / Developer       | `workspace-write`    | Directly creates and modifies code and documentation files              |
-   | Reviewer / QA Inspector | `workspace-write`    | Creates report files + runs tests                                       |
-   | State Manager           | `workspace-write`    | CRUD on checkpoint, task, and findings files                            |
-   | Operator / Deployer     | `danger-full-access` | Executes external processes such as kubectl, terraform, etc.            |
+   | Agent Type                              | sandbox_mode         | Rationale                                                                                         |
+   | --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+   | Researcher / Analyst                    | `read-only`          | File reading and web research only, no writes                                                     |
+   | Architect / Planner *(consultative)*    | `read-only`          | Returns analysis/opinion as text only — orchestrator captures output and writes to findings.md    |
+   | Architect / Planner *(document-producing)* | `workspace-write` | Directly writes design docs (architecture.md, plan.md, etc.) to `_workspace/{plan_name}/`        |
+   | Coder / Developer                       | `workspace-write`    | Directly creates and modifies code and documentation files                                        |
+   | Reviewer / QA Inspector                 | `workspace-write`    | Creates report files + runs tests                                                                 |
+   | State Manager                           | `workspace-write`    | CRUD on checkpoint, task, and findings files                                                      |
+   | Operator / Deployer                     | `danger-full-access` | Executes external processes such as kubectl, terraform, etc.                                      |
+
+   > **Architect/Planner mode selection:** Use `read-only` (consultative) when the orchestrator instructs "analyze and return opinion." Use `workspace-write` (document-producing) when the orchestrator instructs "write the design doc to `_workspace/`." **Never assign `read-only` to an agent whose prompt says to write files** — this will silently fail.
 
 4. **Subagent constraint check:** Agents other than the orchestrator must not spawn subagents.
 
@@ -131,10 +134,12 @@ Bundle schema files: Copy all 9 schemas from `references/schemas/` → `.agents/
    ```markdown
    ## Harness: {plan_name}
 
+   > **Entry point:** Always invoke `@{orchestrator-agent}` first. It loads `.agents/skills/{orchestrator-name}/SKILL.md` and spawns worker subagents per workflow.md. Direct `@worker` calls without the orchestrator are prohibited.
+
+   - Orchestrator: `.codex/agents/{orchestrator-agent}.toml` + `.agents/skills/{orchestrator-name}/SKILL.md`
    - Agents: {agent list + .codex/agents/ paths}
-   - Skills: {skill list + .agents/skills/ paths}
-   - Workflow: \_workspace/workflow.md
-   - Checkpoint: \_workspace/checkpoint.json
+   - Workflow: `_workspace/workflow.md`
+   - Checkpoint: `_workspace/checkpoint.json`
    ```
 
 ### Phase 6: Validation
@@ -144,7 +149,7 @@ Bundle schema files: Copy all 9 schemas from `references/schemas/` → `.agents/
 - [ ] workflow.md schema validated (6 required fields + verifiable exit conditions, no natural language)
 - [ ] workflow.md cycle check
 - [ ] `_workspace/_schemas/` all 9 files present
-- [ ] `AGENTS.md` harness section added
+- [ ] `AGENTS.md` harness section added — includes orchestrator entry point, skill path, agent list, workflow/checkpoint paths
 - [ ] `checkpoint.json` status is `in_progress`
 
 ## Pattern-based Codex Coordination
@@ -166,7 +171,8 @@ Based on Codex subagent spawn. Default parallel execution — sequential executi
 ```
 {project}/
 ├── .codex/
-│   ├── agents/{name}.toml              # Agent definition (TOML)
+│   └── agents/{name}.toml              # Agent definition (TOML)
+├── .agents/
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
 │       └── references/schemas/         # Schema copies (9 files)

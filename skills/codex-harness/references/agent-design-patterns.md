@@ -249,11 +249,15 @@ Codex CLI controls agent permissions with the single **`sandbox_mode`** field in
 
 ### Available Operations per sandbox_mode
 
-| sandbox_mode         | Available Operations                                                            | Representative Agents          |
-| -------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
-| `read-only`          | shell `cat` · `find` · `grep` · `ls`, web fetch — no file writing              | Analyst, Architect             |
-| `workspace-write`    | + `apply_patch`, shell `tee` · write, subagent spawn, test execution            | Coder, Reviewer, State Manager |
-| `danger-full-access` | + external processes (kubectl, terraform, deploy, etc.)                         | Operator, Deployer             |
+| sandbox_mode         | Available Operations                                                            | Representative Agents                                          |
+| -------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `read-only`          | shell `cat` · `find` · `grep` · `ls`, web fetch — no file writing              | Analyst, Architect *(consultative — returns text, no writes)*  |
+| `workspace-write`    | + `apply_patch`, shell `tee` · write, subagent spawn, test execution            | Coder, Reviewer, State Manager, Architect *(document-producing)* |
+| `danger-full-access` | + external processes (kubectl, terraform, deploy, etc.)                         | Operator, Deployer                                             |
+
+> **Architect/Planner sandbox_mode decision rule:**
+> - Prompted to "analyze and return opinion/checklist" → `read-only` (orchestrator writes to findings.md)
+> - Prompted to "write `_workspace/…/*.md`" → **must be `workspace-write`** — `read-only` will silently block the write
 
 ### Special-purpose Tools
 
@@ -339,7 +343,7 @@ Four criteria for deciding whether to merge into a single agent or separate into
 name = "agent-name"
 description = "1-2 sentence role description. List trigger keywords. Also specify that follow-up tasks (revision/supplementation/re-execution) should use this agent."
 model = "{role tier ID verified from models.md}"  # ← Always refer to _workspace/_schemas/models.md
-sandbox_mode = "{{SANDBOX_MODE}}"              # read-only(Analyst/Architect) | workspace-write(Coder/Reviewer/QA) | danger-full-access(Operator)
+sandbox_mode = "{{SANDBOX_MODE}}"              # read-only(Analyst, consultative-Architect) | workspace-write(Coder/Reviewer/QA, document-producing-Architect) | danger-full-access(Operator)
 model_reasoning_effort = "high"   # low(StateManager) | medium(Analyst/Researcher) | high(Coder/QA) | xhigh(Orchestrator/Architect)
 
 developer_instructions = """
