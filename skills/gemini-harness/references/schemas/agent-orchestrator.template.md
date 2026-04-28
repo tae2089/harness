@@ -25,8 +25,8 @@ description: "{{DESCRIPTION}}. This skill must also be used for all follow-up ac
 
 ## Virtual Team
 
-| Agent           | Role | Output |
-| --------------- | ---- | ------ |
+| Agent           | Type                   | Role   | Skill   | Output |
+| --------------- | ---------------------- | ------ | ------- | ------ |
 | {{AGENT_TABLE}} |
 
 > Orchestrator model: `gemini-3.1-pro-preview` (responsible for design and reasoning). Verify model ID at: `references/schemas/models.md`

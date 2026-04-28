@@ -277,7 +277,7 @@ When writing an orchestrator skill, **do not fall back on a flat "Step 1~N" list
 
 **Orchestrator SKILL.md Body Required Sections (Checklist):**
 
-- [ ] Virtual team (agent · type · role · output table)
+- [ ] Virtual team (agent · type · role · skill · output table)
 - [ ] Step 0 (Context verification — branching by checkpoint.json status)
 - [ ] Step 1 (Initialization — simultaneous creation of workflow.md·findings.md·tasks.md·checkpoint.json 5 files + schema validation step 1)
 - [ ] Step 2 (Step execution loop — pattern-based invocation + termination condition check + auto/approval transition)
