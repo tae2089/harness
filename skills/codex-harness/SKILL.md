@@ -173,7 +173,6 @@ Based on Codex subagent spawn. Default parallel execution — sequential executi
 {project}/
 ├── .codex/
 │   └── agents/{name}.toml              # Agent definition (TOML)
-├── .agents/
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
 │       └── references/schemas/         # Schema copies (10 items: 9 schemas + state.py)
