@@ -391,7 +391,7 @@ You are a [role] specialist in [domain].
 | Category       | Skill                                                                | Agent                                              |
 | -------------- | -------------------------------------------------------------------- | -------------------------------------------------- |
 | **Definition** | Procedural knowledge + tool bundle                                   | Expert persona + behavioral principles             |
-| **Location**   | `.agents/skills/{name}/SKILL.md`                                     | `.codex/agents/{name}.toml`                        |
+| **Location**   | `.codex/skills/{name}/SKILL.md`                                     | `.codex/agents/{name}.toml`                        |
 | **Trigger**    | Orchestrator auto-selects via user request keyword matching          | Orchestrator explicitly calls with `@{name}`       |
 | **Size**       | Small to large (workflows)                                           | Small (role definition)                            |
 | **Purpose**    | "**How** to do it"                                                   | "**Who** does it"                                  |
@@ -407,9 +407,9 @@ Three ways agents utilize skills.
 
 | Method                     | Implementation                                                                              | When Suitable                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **Direct skill file load** | Orchestrator reads via `cat .agents/skills/{name}/SKILL.md` and injects into prompt        | When the skill is an independent workflow and the user can call it directly |
+| **Direct skill file load** | Orchestrator reads via `cat .codex/skills/{name}/SKILL.md` and injects into prompt        | When the skill is an independent workflow and the user can call it directly |
 | **Inline in prompt**       | Skill content is directly included in the agent definition body                             | When the skill is short (50 lines or fewer) and **exclusive** to this agent |
-| **Reference load**         | Load `.agents/skills/{skill}/references/*.md` via shell `cat` as needed                    | When skill content is large and only **conditionally** needed             |
+| **Reference load**         | Load `.codex/skills/{skill}/references/*.md` via shell `cat` as needed                    | When skill content is large and only **conditionally** needed             |
 
 **Recommendation:**
 

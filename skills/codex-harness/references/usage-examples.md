@@ -167,7 +167,7 @@ The following utterances **do not call codex-harness**. Respond directly or call
 
 | Mode          | Phases Executed                                                 | Key Artifacts                                                                                                                                               |
 | ------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| New Build     | Phase 1 ~ Phase 6 (full)                                   | `.codex/agents/*.toml`, `.agents/skills/{orchestrator}/SKILL.md`, `AGENTS.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
+| New Build     | Phase 1 ~ Phase 6 (full)                                   | `.codex/agents/*.toml`, `.codex/skills/{orchestrator}/SKILL.md`, `AGENTS.md`, `_workspace/_schemas/`, workflow.md, findings.md, tasks.md, checkpoint.json |
 | Existing Extension     | Determined by expansion-matrix.md matrix (typically Phase 2·3·5·6-6) | Changed files only + `AGENTS.md` change history                                                                                                  |
 | Operations/Maintenance | Phase 0 → evolution-protocol.md                            | Audit report + drift corrections                                                                                                                  |
 | Partial Re-run   | Phase 0 (checkpoint rewind) → from Phase 2                  | Affected artifacts only                                                                                                                         |

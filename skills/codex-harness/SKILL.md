@@ -1,6 +1,6 @@
 ---
 name: codex-harness
-description: "A meta-skill for designing a specialized subagent team in the Codex CLI environment. Domain analysis → Agent TOML definitions (.codex/agents/) → Skill creation (.agents/skills/) → AGENTS.md initialization. Triggers: 'set up codex harness', 'create codex agent team', 'build codex harness', '{domain} codex automation'. Also use this skill for follow-up tasks (modification/refinement/re-execution/expansion)."
+description: "A meta-skill for designing a specialized subagent team in the Codex CLI environment. Domain analysis → Agent TOML definitions (.codex/agents/) → Skill creation (.codex/skills/) → AGENTS.md initialization. Triggers: 'set up codex harness', 'create codex agent team', 'build codex harness', '{domain} codex automation'. Also use this skill for follow-up tasks (modification/refinement/re-execution/expansion)."
 ---
 
 # Skill: Codex Harness Orchestrator
@@ -11,7 +11,7 @@ description: "A meta-skill for designing a specialized subagent team in the Code
 
 1. **7 Architecture Patterns:** Pipeline · Fan-out/Fan-in · Expert Pool · Producer-Reviewer · Supervisor · Hierarchical · Handoff
 2. **Agent Definition:** TOML format — `.codex/agents/{name}.toml`
-3. **Skill Format:** SKILL.md — `.agents/skills/{name}/SKILL.md`
+3. **Skill Format:** SKILL.md — `.codex/skills/{name}/SKILL.md`
 4. **Project Context:** `AGENTS.md` — Path hierarchy: global `~/.codex/AGENTS.md` → repo `AGENTS.md` → subdirectory (more specific file takes precedence). Short and precise files are better than long and vague ones.
 5. **State Persistence:** `_workspace/` file-based brokering
 6. **Permission Control:** TOML `sandbox_mode` field — `read-only | workspace-write | danger-full-access`
@@ -70,7 +70,7 @@ PROCEDURE plan_mode(user_request):
 
 ### Phase 0: Status Audit (Mode Branching)
 
-Check for the existence of `.codex/agents/`, `.agents/skills/`, `AGENTS.md`, `_workspace/checkpoint.json`:
+Check for the existence of `.codex/agents/`, `.codex/skills/`, `AGENTS.md`, `_workspace/checkpoint.json`:
 
 | State                         | Mode          | Entry Phase                              |
 | ----------------------------- | ------------- | ---------------------------------------- |
@@ -117,9 +117,9 @@ Required fields: `name`, `description`, `developer_instructions`, `model`, `sand
 
 ### Phase 4: Procedure Skill Creation
 
-Write `.agents/skills/{orchestrator-name}/SKILL.md`. Reference: `references/schemas/agent-orchestrator.template.md`.
+Write `.codex/skills/{orchestrator-name}/SKILL.md`. Reference: `references/schemas/agent-orchestrator.template.md`.
 
-Bundle schema files: Copy all 10 items from `references/schemas/` → `.agents/skills/{name}/references/schemas/` (9 schemas + `state.py`).
+Bundle schema files: Copy all 10 items from `references/schemas/` → `.codex/skills/{name}/references/schemas/` (9 schemas + `state.py`).
 
 ### Phase 5: Integration and Orchestration
 
@@ -134,9 +134,9 @@ Bundle schema files: Copy all 10 items from `references/schemas/` → `.agents/s
    ```markdown
    ## Harness: {plan_name}
 
-   > **Entry point:** Always invoke `@{orchestrator-agent}` first. It loads `.agents/skills/{orchestrator-name}/SKILL.md` and spawns worker subagents per workflow.md. Direct `@worker` calls without the orchestrator are prohibited.
+   > **Entry point:** Always invoke `@{orchestrator-agent}` first. It loads `.codex/skills/{orchestrator-name}/SKILL.md` and spawns worker subagents per workflow.md. Direct `@worker` calls without the orchestrator are prohibited.
 
-   - Orchestrator: `.codex/agents/{orchestrator-agent}.toml` + `.agents/skills/{orchestrator-name}/SKILL.md`
+   - Orchestrator: `.codex/agents/{orchestrator-agent}.toml` + `.codex/skills/{orchestrator-name}/SKILL.md`
    - Agents: {agent list + .codex/agents/ paths}
    - Workflow: `_workspace/workflow.md`
    - Checkpoint: `_workspace/checkpoint.json`
@@ -145,7 +145,7 @@ Bundle schema files: Copy all 10 items from `references/schemas/` → `.agents/s
 ### Phase 6: Validation
 
 - [ ] `.codex/agents/*.toml` required fields complete (name, description, developer_instructions, model, sandbox_mode, model_reasoning_effort)
-- [ ] `.agents/skills/*/SKILL.md` frontmatter name and description validated
+- [ ] `.codex/skills/*/SKILL.md` frontmatter name and description validated
 - [ ] workflow.md schema validated (6 required fields + verifiable exit conditions, no natural language)
 - [ ] workflow.md cycle check
 - [ ] `_workspace/_schemas/` all 9 files present

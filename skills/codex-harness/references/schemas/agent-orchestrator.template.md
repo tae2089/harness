@@ -1,5 +1,5 @@
 <!--
-ORCHESTRATOR AGENT TEMPLATE — After variable substitution, save as `.agents/skills/{harness-name}/SKILL.md`.
+ORCHESTRATOR AGENT TEMPLATE — After variable substitution, save as `.codex/skills/{harness-name}/SKILL.md`.
 The orchestrator is generated as a skill SKILL.md, not as an agent .md file.
 Model ID SoT: references/schemas/models.md (always check models.md first before making changes)
 
