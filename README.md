@@ -20,7 +20,7 @@ A meta-framework for designing specialist subagent teams in AI coding agents. Ge
 
 | Skill | CLI | Agent Definition | Skills Path |
 |-------|-----|-----------------|-------------|
-| `codex-harness` | OpenAI Codex CLI | `.codex/agents/{name}.toml` | `.agents/skills/` |
+| `codex-harness` | OpenAI Codex CLI | `.codex/agents/{name}.toml` | `.codex/skills/` |
 | `gemini-harness` | Google Gemini CLI | `.gemini/agents/{name}.md` | `.gemini/skills/` |
 
 ---
@@ -32,12 +32,12 @@ A meta-framework for designing specialist subagent teams in AI coding agents. Ge
 **Personal (global):**
 ```bash
 git clone https://github.com/tae2089/harness.git
-cp -r harness/skills/codex-harness ~/.agents/skills/
+cp -r harness/skills/codex-harness ~/.codex/skills/
 ```
 
 **Team (per-repo):**
 ```bash
-cp -r harness/skills/codex-harness .agents/skills/
+cp -r harness/skills/codex-harness .codex/skills/
 ```
 
 After installation, say `"build a codex harness"` in a Codex CLI session to confirm `codex-harness` skill auto-triggers.
@@ -49,7 +49,7 @@ After installation, say `"build a codex harness"` in a Codex CLI session to conf
 - **sandbox_mode Permission Control:** Every agent requires an explicit `sandbox_mode`: `read-only` (Analyst/Architect) · `workspace-write` (Coder/Reviewer/QA) · `danger-full-access` (Operator/Deployer). No wildcard permissions.
 - **Plan Mode Required:** Activate with `/plan` or `Shift+Tab` before new builds and expansions.
 - **Main Agent as Single Broker:** No direct inter-subagent communication API. All collaboration brokered via `_workspace/`.
-- **3-Component Structure:** `.codex/agents/*.toml` + `.agents/skills/*/SKILL.md` + `AGENTS.md`.
+- **3-Component Structure:** `.codex/agents/*.toml` + `.codex/skills/*/SKILL.md` + `AGENTS.md`.
 
 ### Usage
 
@@ -63,8 +63,7 @@ build a harness for an SSO authentication project
 ```
 {project}/
 ├── .codex/
-│   └── agents/{name}.toml              # Agent definition (TOML: role, sandbox_mode, model)
-├── .agents/
+│   ├── agents/{name}.toml              # Agent definition (TOML: role, sandbox_mode, model)
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
 │       └── references/schemas/
