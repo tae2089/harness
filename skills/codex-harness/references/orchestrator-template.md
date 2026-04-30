@@ -144,7 +144,9 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
 }
 ```
 
-> **`@state-manager` delegation pattern (optional):** If the virtual team includes `@state-manager`, delegate steps 5–7 (findings.md / tasks.md / checkpoint.json initialization) and all state updates in Step 2 via `subagent spawn`. The orchestrator focuses on reasoning and coordination; state I/O is handled by `@state-manager` (flash model) after schema validation. Interface: `OPERATION: state.init|checkpoint.update|task.upsert|findings.append|tasks.update|state.archive` + `PAYLOAD:` block. Full spec: `references/schemas/agent-state-manager.template.toml`.
+> **`@state-manager` delegation (default when `@state-manager` is present — not optional):** Delegate steps 5–7 (findings.md / tasks.md / checkpoint.json initialization) and **all** state updates in Step 2 via `subagent spawn`. The orchestrator's sole job is reasoning and subagent coordination — it must not read or write `_workspace/` files directly. State I/O belongs exclusively to `@state-manager` (flash model). Interface: `OPERATION: state.init|checkpoint.update|task.upsert|findings.append|tasks.update|state.archive` + `PAYLOAD:` block. Full spec: `references/schemas/agent-state-manager.template.toml`.
+>
+> **Fallback only:** If `@state-manager` is absent from the virtual team, the orchestrator may perform state I/O directly — this is an exception, not the default.
 
 > **Notation bridge:** `workflow.md` declares Stages and Steps using **markdown headers only** (`### Stage 1: {deliverable-name}`, `#### Step 1: {deliverable-name}`), not JSON. The `"current_stage": "{workflow.stages[0].name}"` in the checkpoint.json above is pseudocode meaning "the name parsed from the first `### Stage` header" — it is not a JSON array access.
 > **Parsing example:** `### Stage 1: sso-integration` → `current_stage = "sso-integration"` / `#### Step 1: requirements-gathering` → `current_step = "requirements-gathering"`. The orchestrator reads `workflow.md` via shell `cat`, builds the Stage/Step list in header order, and references them by name (text).

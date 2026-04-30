@@ -136,7 +136,14 @@ Bundle schema files: Copy all 10 items from `references/schemas/` → `.codex/sk
 
    > **Entry point:** Always invoke `@{orchestrator-agent}` first. It loads `.codex/skills/{orchestrator-name}/SKILL.md` and spawns worker subagents per workflow.md. Direct `@worker` calls without the orchestrator are prohibited.
 
+   > **Orchestrator role boundary (strict):**
+   > - Orchestrator = **subagent coordination only**. It reasons, routes, and spawns — nothing else.
+   > - Orchestrator does **NOT** read/write `checkpoint.json`, `findings.md`, `tasks.md`, or any `_workspace/` files directly.
+   > - All state I/O (checkpoint updates, task upserts, findings appends) is **delegated to `@state-manager`** via subagent spawn.
+   > - If `@state-manager` is absent from the virtual team, the orchestrator may perform state I/O as a fallback — but this is an exception, not the norm.
+
    - Orchestrator: `.codex/agents/{orchestrator-agent}.toml` + `.codex/skills/{orchestrator-name}/SKILL.md`
+   - State Manager: `.codex/agents/state-manager.toml` — owns all `_workspace/` reads and writes
    - Agents: {agent list + .codex/agents/ paths}
    - Workflow: `_workspace/workflow.md`
    - Checkpoint: `_workspace/checkpoint.json`
