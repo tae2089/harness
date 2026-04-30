@@ -187,13 +187,22 @@ Please resolve the blocking cause and resume. ("continue" / "restart")
 1. Read `workflow.md`, `checkpoint.json`, `findings.md`.
 2. Extract `workflow[ckpt.current_stage][ckpt.current_step]` → `step_block`. If absent, log error in findings.md → request user confirmation → HALT.
 3. Extract `active_agents`, `pattern`, `exit_cond`, `max_iterations` from `step_block`.
-4. **Resolve symbolic placeholders:** If `active_agents` contains symbolic names like `@selected_expert`:
+4. **Exit condition pre-check (required — fires before any agent call, every cycle including resume):**
+   - Evaluate `exit_cond` immediately using the check methods in the "Exit condition check" table below.
+   - **Met** → skip agent invocation entirely → jump directly to "When exit condition is met".
+   - **Not met** → continue to step 5.
+
+   > **Resume guard (timeout / session_restart / schema repair):** This pre-check is the idempotency gate. If workers already wrote artifacts and all `task_*.json` have `status=done`, the orchestrator transitions without re-calling agents. Missing this check is the root cause of "loop missed → stuck at same step" and "worker done but orchestrator idle" failures.
+   >
+   > **Post-schema-repair re-validation:** If task JSON files were repaired externally between cycles, re-read every `task_*.json` for the current step's agents from disk before evaluating Type A exit conditions. Do not rely on cached state.
+
+5. **Resolve symbolic placeholders:** If `active_agents` contains symbolic names like `@selected_expert`:
    - Read `checkpoint.shared_variables.selected_expert` → substitute with actual agent name.
    - If field absent → `request_user_input("The expert_pool Step has not been executed yet or selected_expert is not recorded. Which agent should be called?")` → RETURN.
      > This substitution applies at runtime only. Do not modify the workflow.md file itself.
-5. **Pre-blocked check (required before calling any agent):** If any `_workspace/tasks/task_*.json` has `status=="blocked" AND agent IN active_agents` → update checkpoint to `blocked` → request user confirmation → RETURN. Never call the agent.
-6. Access control: do not call any agent outside the `active_agents` list.
-7. **findings.md context injection:** Include the full `findings.md` in the agent call prompt.
+6. **Pre-blocked check (required before calling any agent):** If any `_workspace/tasks/task_*.json` has `status=="blocked" AND agent IN active_agents` → update checkpoint to `blocked` → request user confirmation → RETURN. Never call the agent.
+7. Access control: do not call any agent outside the `active_agents` list.
+8. **findings.md context injection:** Include the full `findings.md` in the agent call prompt.
 
    ```
    subagent spawn(@{name}, prompt="""

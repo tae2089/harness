@@ -169,13 +169,22 @@ Please resolve the blocking cause and resume. ("continue" / "from scratch")
 1. Read `workflow.md`, `checkpoint.json`, `findings.md`.
 2. Extract `workflow[ckpt.current_stage][ckpt.current_step]` → `step_block`. If not found, record error in findings.md → `ask_user` → HALT.
 3. Extract `active_agents`, `pattern`, `exit_cond`, `max_iterations` from `step_block`.
-4. **Resolve symbolic placeholders:** If `active_agents` contains symbolic names such as `@selected_expert`:
+4. **Exit condition pre-check (required — fires before any agent call, every cycle including resume):**
+   - Evaluate `exit_cond` immediately using the check methods in the "Exit condition check" table below.
+   - **Met** → skip agent invocation entirely → jump directly to "On exit condition met".
+   - **Not met** → continue to step 5.
+
+   > **Resume guard (timeout / session_restart / schema repair):** This pre-check is the idempotency gate. If workers already wrote artifacts and all `task_*.json` have `status=done`, the orchestrator transitions without re-calling agents. Missing this check is the root cause of "loop missed → stuck at same step" and "worker done but orchestrator idle" failures.
+   >
+   > **Post-schema-repair re-validation:** If task JSON files were repaired externally between cycles, re-read every `task_*.json` for the current step's agents from disk before evaluating Type A exit conditions. Do not rely on cached state.
+
+5. **Resolve symbolic placeholders:** If `active_agents` contains symbolic names such as `@selected_expert`:
    - Read `checkpoint.shared_variables.selected_expert` → substitute with actual agent name.
    - If field does not exist → `ask_user("The expert_pool Step has not yet run, or selected_expert was not recorded. Which agent should be called?")` → RETURN.
    > This substitution is runtime-only. Do not modify the workflow.md file itself.
-5. **Pre-blocked check (required before invoking agents):** If any `_workspace/tasks/task_*.json` has `status=="blocked" AND agent IN active_agents` → update checkpoint to `blocked` → `ask_user` → RETURN. Absolutely no agent invocation.
-6. Access control: only agents in the `active_agents` list may be invoked.
-7. **Inject findings.md context:** Include the full `findings.md` in the agent invocation prompt.
+6. **Pre-blocked check (required before invoking agents):** If any `_workspace/tasks/task_*.json` has `status=="blocked" AND agent IN active_agents` → update checkpoint to `blocked` → `ask_user` → RETURN. Absolutely no agent invocation.
+7. Access control: only agents in the `active_agents` list may be invoked.
+8. **Inject findings.md context:** Include the full `findings.md` in the agent invocation prompt.
    ```
    invoke_agent(@{name}, prompt="""
    {task_description}

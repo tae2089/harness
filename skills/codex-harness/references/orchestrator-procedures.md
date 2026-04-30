@@ -28,6 +28,10 @@ PROCEDURE handle_error(agent, task, error_type):
         // ※ Idempotency required: each agent must first check whether output files exist
         //   and skip already-completed work. Results must be identical regardless of how
         //   many times resumption occurs.
+        // ※ Step 2 exit condition PRE-CHECK (step 4 in the cycle) fires at the top of every
+        //   cycle including this resume path. If workers already completed and task_*.json
+        //   have status=done, the orchestrator transitions immediately — no re-invocation.
+        //   This is the primary guard against "loop missed → stuck at same step" failures.
         GOTO Step 0
         RETURN
 
