@@ -46,33 +46,32 @@ cp -r harness/skills/codex-harness .codex/skills/
 
 ### コア原則（Codex CLI）
 
-- **sandbox_mode 権限制御:** すべてのエージェントに明示的な `sandbox_mode` が必須: `read-only`（Analyst/Architect）· `workspace-write`（Coder/Reviewer/QA）· `danger-full-access`（Operator/Deployer）。ワイルドカード権限は禁止。
-- **Plan Mode 必須:** 新規構築・拡張時は `/plan` または `Shift+Tab` で有効化。
-- **メインエージェントを単一ブローカーとして:** サブエージェント間の直接通信 API なし。すべての協調は `_workspace/` 経由で仲介。
-- **3 要素構成:** `.codex/agents/*.toml` + `.codex/skills/*/SKILL.md` + `AGENTS.md`。
+- メイン Orchestrator が Codex サブエージェントを呼び出し、成果物を検証します。別の agent-team ランタイムは不要です。
+- `to-spec`・`to-issues` と `.scratch/.tracker` を共有します。未指定の場合、既存 Issue・新規 Issue・Issue なしを選択します。
+- 選択した作業記録に進捗・検証結果・障害・次の作業を記録し、再開時に実際のコードとテストを照合します。
+- Issue を閉じるのはユーザーの依頼時のみです。必須のローカル作業 DB、checkpoint、状態 CLI、State Manager は生成しません。
+- 役割ごとのモデルと既定の `medium` 推論強度を明示し、分野別の習熟度を AGENTS.md に反映します。
+- 必要最小限の権限を使用し、運用担当にも無制限のアクセスを自動付与しません。
 
 ### 使い方
 
-```
-/plan
-SSO認証プロジェクト用の codex ハーネスを構築して
+```text
+SSO 認証プロジェクト用の Codex ハーネスを構築して。
 ```
 
 ### 生成される成果物
 
-```
-{プロジェクト}/
+```text
+{project}/
 ├── .codex/
-│   ├── agents/{name}.toml              # エージェント定義（TOML: 役割、sandbox_mode、モデル）
+│   ├── agents/{name}.toml
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
-│       └── references/schemas/
-├── _workspace/
-│   ├── workflow.md
-│   ├── findings.md
-│   ├── tasks.md
-│   ├── checkpoint.json
-│   └── tasks/task_{agent}_{id}.json
+│       └── references/
+│           ├── project-policy.md
+│           ├── orchestrator-procedures.md
+│           └── schemas/models.md
+├── .scratch/.tracker                 # Shared publication configuration, when used
 └── AGENTS.md
 ```
 
@@ -179,6 +178,7 @@ harness/
     │       ├── usage-examples.md
     │       ├── agent-design-patterns.md
     │       ├── orchestrator-template.md
+    │       ├── project-policy.md
     │       ├── orchestrator-procedures.md
     │       ├── team-examples.md
     │       ├── stage-step-guide.md
@@ -190,13 +190,7 @@ harness/
     │       ├── schemas/
     │       │   ├── models.md                     # ⚠️ モデル ID 正本
     │       │   ├── agent-worker.template.toml
-    │       │   ├── agent-state-manager.template.toml
     │       │   ├── agent-orchestrator.template.md
-    │       │   ├── task.schema.json
-    │       │   ├── checkpoint.schema.json
-    │       │   ├── workflow.template.md
-    │       │   ├── findings.template.md
-    │       │   ├── tasks.template.md
     │       │   └── README.md
     │       └── examples/
     │           ├── full-bundle/sso-style.md

@@ -46,33 +46,32 @@ After installation, say `"build a codex harness"` in a Codex CLI session to conf
 
 ### Core Principles (Codex CLI)
 
-- **sandbox_mode Permission Control:** Every agent requires an explicit `sandbox_mode`: `read-only` (Analyst/Architect) · `workspace-write` (Coder/Reviewer/QA) · `danger-full-access` (Operator/Deployer). No wildcard permissions.
-- **Plan Mode Required:** Activate with `/plan` or `Shift+Tab` before new builds and expansions.
-- **Main Agent as Single Broker:** No direct inter-subagent communication API. All collaboration brokered via `_workspace/`.
-- **3-Component Structure:** `.codex/agents/*.toml` + `.codex/skills/*/SKILL.md` + `AGENTS.md`.
+- The main Orchestrator coordinates native Codex subagents and verifies their outputs; no separate agent-team runtime is required.
+- Share `.scratch/.tracker` with `to-spec` and `to-issues`. Choose existing issue, new issue, or no issue unless already specified.
+- Record meaningful progress, evidence, blockers, and next actions on the selected work record. Resume by checking that record against actual artifacts and tests.
+- Close issues only on user request. No mandatory local task database, checkpoint, state CLI, or State Manager is generated.
+- Set role-specific models explicitly, with `medium` effort by default. Generate the user's domain/familiarity explanation profile in AGENTS.md.
+- Use the minimum permissions needed; operational roles do not automatically receive full access.
 
 ### Usage
 
-```
-/plan
-build a harness for an SSO authentication project
+```text
+Build a Codex harness for an SSO authentication project.
 ```
 
 ### Generated Artifacts
 
-```
+```text
 {project}/
 ├── .codex/
-│   ├── agents/{name}.toml              # Agent definition (TOML: role, sandbox_mode, model)
+│   ├── agents/{name}.toml
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
-│       └── references/schemas/
-├── _workspace/
-│   ├── workflow.md
-│   ├── findings.md
-│   ├── tasks.md
-│   ├── checkpoint.json
-│   └── tasks/task_{agent}_{id}.json
+│       └── references/
+│           ├── project-policy.md
+│           ├── orchestrator-procedures.md
+│           └── schemas/models.md
+├── .scratch/.tracker                 # Shared publication configuration, when used
 └── AGENTS.md
 ```
 
@@ -179,6 +178,7 @@ harness/
     │       ├── usage-examples.md
     │       ├── agent-design-patterns.md
     │       ├── orchestrator-template.md
+    │       ├── project-policy.md
     │       ├── orchestrator-procedures.md
     │       ├── team-examples.md
     │       ├── stage-step-guide.md
@@ -190,13 +190,7 @@ harness/
     │       ├── schemas/
     │       │   ├── models.md                     # ⚠️ Model ID source of truth
     │       │   ├── agent-worker.template.toml
-    │       │   ├── agent-state-manager.template.toml
     │       │   ├── agent-orchestrator.template.md
-    │       │   ├── task.schema.json
-    │       │   ├── checkpoint.schema.json
-    │       │   ├── workflow.template.md
-    │       │   ├── findings.template.md
-    │       │   ├── tasks.template.md
     │       │   └── README.md
     │       └── examples/
     │           ├── full-bundle/sso-style.md

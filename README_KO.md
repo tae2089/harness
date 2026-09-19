@@ -46,33 +46,32 @@ cp -r harness/skills/codex-harness .codex/skills/
 
 ### 핵심 원칙 (Codex CLI)
 
-- **sandbox_mode 권한 제어:** 모든 에이전트에 명시적 `sandbox_mode` 필수: `read-only`(Analyst/Architect) · `workspace-write`(Coder/Reviewer/QA) · `danger-full-access`(Operator/Deployer). 와일드카드 권한 금지.
-- **Plan Mode 필수:** 신규 구축·확장 시 `/plan` 또는 `Shift+Tab` 활성화.
-- **메인 에이전트 단일 브로커:** 서브에이전트 간 직접 통신 API 부재. 모든 협업은 `_workspace/`로 중개.
-- **3요소 구성:** `.codex/agents/*.toml` + `.codex/skills/*/SKILL.md` + `AGENTS.md`.
+- 메인 Orchestrator가 기본 Codex 서브에이전트를 호출하고 결과를 검증합니다. 별도 agent-team 런타임은 필요하지 않습니다.
+- `to-spec`·`to-issues`와 `.scratch/.tracker`를 공유합니다. 이미 지정하지 않았다면 기존 이슈·새 이슈·이슈 없이 진행 중 선택합니다.
+- 선택한 작업 기록에 진행 상황·검증 근거·막힌 점·다음 행동을 갱신합니다. 재개 시 기록과 실제 코드·테스트를 대조합니다.
+- 이슈 종료는 사용자 요청에만 따릅니다. 필수 로컬 작업 DB·checkpoint·상태 CLI·State Manager는 생성하지 않습니다.
+- 역할별 모델과 기본 `medium` 추론 강도를 명시하고, 사용자 분야·숙련도에 맞는 설명 프로필을 AGENTS.md에 반영합니다.
+- 역할에 필요한 최소 권한을 사용하며, 운영 역할에도 전체 접근 권한을 자동 부여하지 않습니다.
 
 ### 사용 방법
 
-```
-/plan
-SSO 인증 프로젝트를 위한 codex 하네스 구성해줘
+```text
+SSO 인증 프로젝트를 위한 Codex 하네스 구성해줘.
 ```
 
 ### 생성 산출물
 
-```
-{프로젝트}/
+```text
+{project}/
 ├── .codex/
-│   ├── agents/{name}.toml              # 에이전트 정의 (TOML: 역할, sandbox_mode, 모델)
+│   ├── agents/{name}.toml
 │   └── skills/{orchestrator}/
 │       ├── SKILL.md
-│       └── references/schemas/
-├── _workspace/
-│   ├── workflow.md
-│   ├── findings.md
-│   ├── tasks.md
-│   ├── checkpoint.json
-│   └── tasks/task_{agent}_{id}.json
+│       └── references/
+│           ├── project-policy.md
+│           ├── orchestrator-procedures.md
+│           └── schemas/models.md
+├── .scratch/.tracker                 # Shared publication configuration, when used
 └── AGENTS.md
 ```
 
@@ -179,6 +178,7 @@ harness/
     │       ├── usage-examples.md
     │       ├── agent-design-patterns.md
     │       ├── orchestrator-template.md
+    │       ├── project-policy.md
     │       ├── orchestrator-procedures.md
     │       ├── team-examples.md
     │       ├── stage-step-guide.md
@@ -190,13 +190,7 @@ harness/
     │       ├── schemas/
     │       │   ├── models.md                     # ⚠️ 모델 ID 정본
     │       │   ├── agent-worker.template.toml
-    │       │   ├── agent-state-manager.template.toml
     │       │   ├── agent-orchestrator.template.md
-    │       │   ├── task.schema.json
-    │       │   ├── checkpoint.schema.json
-    │       │   ├── workflow.template.md
-    │       │   ├── findings.template.md
-    │       │   ├── tasks.template.md
     │       │   └── README.md
     │       └── examples/
     │           ├── full-bundle/sso-style.md

@@ -1,99 +1,48 @@
-<!--
-ORCHESTRATOR AGENT TEMPLATE — After variable substitution, save as `.codex/skills/{harness-name}/SKILL.md`.
-The orchestrator is generated as a skill SKILL.md, not as an agent .md file.
-Model ID SoT: references/schemas/models.md (always check models.md first before making changes)
-
-Substitution variables:
-  {{SKILL_NAME}}        kebab-case skill name (e.g. sso-dev-flow)
-  {{DESCRIPTION}}       pushy description + trigger keywords + follow-up action keywords
-  {{PLAN_NAME}}         subdirectory name under _workspace (e.g. sso)
-  {{AGENT_TABLE}}       virtual team table rows (repeated)
-  {{STAGE_STEP_SUMMARY}} workflow.md Stage/Step structure summary
-
-Only the orchestrator can spawn subagents — worker agents are prohibited from doing so.
-Model uses the thinking tier (responsible for complex reasoning and multi-step coordination).
--->
-
 ---
-
 name: {{SKILL_NAME}}
-description: "{{DESCRIPTION}}. Always use this skill for follow-up work (modifications/enhancements/re-runs)."
-
+description: "{{DESCRIPTION}}"
 ---
 
-# Skill: {{SKILL_NAME}} Orchestrator
+# {{SKILL_NAME}}
 
-## Virtual Team
+## Roles
 
-| Agent           | Type                   | Role   | Skill   | Output |
-| --------------- | ---------------------- | ------ | ------- | ------ |
-| {{AGENT_TABLE}} |
+| Agent | Responsibility | Definition |
+| --- | --- | --- |
+{{AGENT_TABLE}}
 
-> Orchestrator model: `gpt-5.5` (responsible for design and reasoning). Verify model ID in: `references/schemas/models.md`
+Use the explicit model and effort policy in `references/schemas/models.md`. The main Orchestrator uses `gpt-6-astra` with `medium` effort unless the user overrides it; this skill cannot switch the active session model.
 
-## Workflow
+## Work policy
 
-### Step 0: Context Check (Durable Execution)
+Load `references/project-policy.md` before actionable work. Accept natural-language requests. Reuse the user's existing/new/no-issue choice and the project's AGENTS.md explanation profile.
 
-Apply `references/orchestrator-template.md` Step 0 procedure. Branch based on `_workspace/checkpoint.json` status:
+Share `.scratch/.tracker` with the installed `to-spec` and `to-issues` skills. Do not create issues per agent or retry. Missing publication dependencies must be reported; issue-free work remains possible.
 
-- `in_progress` → Resume (continue from current stage/step)
-- `completed` → Confirm with user: partial re-run or fresh run
-- Not present → Fresh run (proceed to Step 1)
+## Execution
 
-### Step 1: Initialization
+Follow `references/orchestrator-procedures.md`:
+1. Read the selected work record and inspect current artifacts.
+2. Establish remaining work and completion criteria.
+3. Execute directly or delegate bounded tasks to selected native Codex subagents.
+4. Verify returned artifacts and record meaningful progress, evidence, blockers, and next action.
+5. Report completion; close the selected issue only on user request.
 
-1. Create directories: `_workspace/{{PLAN_NAME}}/`, `_workspace/tasks/`, `_workspace/_schemas/`.
-2. **Schema synchronization** — Copy 5 schema files + 3 agent templates from `references/schemas/` to `_workspace/_schemas/` via shell `cat` → `apply_patch` (see `references/orchestrator-template.md` Step 1.3).
-3. Write `workflow.md` (variable substitution from `_workspace/_schemas/workflow.template.md`):
-   {{STAGE_STEP_SUMMARY}}
-4. Initialize `findings.md` (based on `_workspace/_schemas/findings.template.md`).
-5. Initialize `tasks.md` (based on `_workspace/_schemas/tasks.template.md`).
-6. Create `checkpoint.json` (validated against `_workspace/_schemas/checkpoint.schema.json` by `python _workspace/state.py` on write):
-   ```json
-   {
-     "plan_name": "{{PLAN_NAME}}",
-     "status": "in_progress",
-     "current_stage": "{first Stage name}",
-     "current_step": "{first Step name}",
-     "active_pattern": "{first Step pattern}"
-   }
-   ```
-7. **workflow.md schema validation** — 6 required fields + naming convention (no placeholders) + verifiable exit conditions + pattern enum. Violations cause HALT (see `references/orchestrator-template.md` Step 1.8).
-8. **workflow.md cycle validation** (after passing schema validation).
+Only the main Orchestrator spawns subagents. Workers report directly back; no separate agent-team runtime or local execution-state engine is required.
 
-### Step 2: Step Execution Loop
+## Completion criteria
 
-Apply `references/orchestrator-template.md` Step 2 standard procedure. Invoke agents per pattern, check exit conditions, handle Stage gates, update checkpoint.json.
+{{COMPLETION_CRITERIA}}
 
-## Error Handling
+## Resume and failure
 
-Zero-Tolerance: agent failure → up to 2 retries (3 total) → if unresolved, set `task_*.json` status=blocked and request user confirmation. Arbitrary skipping is strictly prohibited.
+Read the issue/spec and relevant comments, then verify them against actual artifacts and tests. Reuse completed work that is still valid. For issue-free work, use the conversation and an optional handoff note. Ask for missing context rather than guessing.
 
-## Test Scenarios
+On failure, report the evidence and next action. Do not restart completed work or repeat the same failed action without new evidence. Report publication failures separately from implementation results.
 
-> Required: at least **1 normal flow + 1 resume flow + 1 error flow**. Step 5 validation cannot pass without all three. Full scenario spec: `references/skill-testing-guide.md` § Orchestrator Test Scenarios.
+## Verification scenarios
 
-### Normal Flow
-
-1. User provides `{input}`.
-2. Step 0: `_workspace/` absent → fresh run.
-3. Step 1: Create `workflow.md` · `findings.md` · `tasks.md` · `checkpoint.json`. Stage/Step names follow Jira kebab-case convention (no placeholders like `main`).
-4. Step 2: Invoke agents per workflow.md order (e.g., @{agent-1} → @{agent-2}).
-5. Step 3+: QA / integration / reporting per workflow.md.
-6. **Expected:** `_workspace/{{PLAN_NAME}}/final_{output}` exists, all `tasks.md` items `Done`.
-
-### Resume Flow
-
-1. @{agent-1} completes; session interrupted before @{agent-2} finishes.
-2. User re-invokes → Step 0 detects `checkpoint.json` (`status: in_progress`).
-3. Restore `current_stage` / `current_step` → skip completed work, resume from @{agent-2}.
-4. **Expected:** @{agent-1} output reused as-is; only @{agent-2} and later steps re-execute.
-
-### Error Flow
-
-1. Step 3: @{reviewer} rejects @{agent-2}'s output.
-2. Rejection reason recorded in `findings.md` [Change Requests].
-3. @{agent-2} re-invoked with reviewer report injected → produces corrected output.
-4. @{reviewer} re-validates → passes → proceed to next step.
-5. **Expected:** Final report explicitly notes "Error recovery: @{agent-2} revised after @{reviewer} rejection".
+- Normal: finish the requested work, verify the result, update the selected work record, leave closure to the user.
+- Resume: read the record and current artifacts; continue remaining work without replaying already valid work.
+- Error: use reviewer evidence to make a bounded correction, reverify, and report the outcome.
+- No issue: execute without creating a ticket or requiring tracker configuration.
